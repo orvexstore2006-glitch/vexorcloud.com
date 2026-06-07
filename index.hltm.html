@@ -1,0 +1,3151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<title>Vexor Cloud — Gestão Industrial</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#08090b"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Vexor"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png"/>
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png"/>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  body { background: #08090b; font-family: system-ui, -apple-system, sans-serif; color: #f1f5f9; overflow-x: hidden; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+  input, select, textarea { font-family: inherit; color: #f1f5f9; }
+  input, select, textarea, .field-input, .field-select, .field-textarea { max-width: 100%; box-sizing: border-box; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* Layout */
+  #app { min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+  html, body { height: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+  .topbar { height: 60px; background: #101115; border-bottom: 1px solid #1f2130; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+  .layout { display: flex; flex: 1; }
+  .sidebar { width: 200px; background: #101115; border-right: 1px solid #1f2130; padding: 16px 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
+  .page-content { flex: 1; overflow-y: auto; }
+
+  /* Nav button */
+  .nav-btn { width: 100%; height: 48px; border-radius: 10px; border: 1px solid #1f2130; background: transparent; color: #94a3b8; display: flex; align-items: center; gap: 12px; padding: 0 14px; cursor: pointer; font-weight: 700; font-size: 13px; transition: all 0.15s; }
+  .nav-btn.active { border-color: #3b82f6; background: rgba(59,130,246,0.14); color: #3b82f6; }
+  .nav-btn:hover:not(.active) { background: rgba(255,255,255,0.04); }
+  .nav-btn svg { flex-shrink: 0; }
+
+  /* Bottom nav mobile */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(68px + env(safe-area-inset-bottom, 0px)); background: #101115; border-top: 1px solid #1f2130; display: flex; align-items: stretch; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .bottom-btn { flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #475569; border-top: 2px solid transparent; transition: all 0.15s; font-size: 10px; font-weight: 500; }
+  .bottom-btn.active { color: #3b82f6; border-top-color: #3b82f6; }
+
+  /* Cards */
+  .card { background: #101115; border: 1px solid #1f2130; border-radius: 14px; }
+  .card-sm { background: #101115; border: 1px solid #1f2130; border-radius: 10px; }
+
+  /* Form elements */
+  .field-label { font-size: 11px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .field-input { width: 100%; height: 44px; background: #08090b; border: 1px solid #1f2130; border-radius: 8px; color: #f1f5f9; font-size: 14px; outline: none; padding: 0 12px; transition: border-color 0.15s; }
+  .field-input:focus { border-color: #3b82f6; }
+  .field-textarea { width: 100%; background: #08090b; border: 1px solid #1f2130; border-radius: 8px; color: #f1f5f9; font-size: 14px; outline: none; padding: 10px 12px; min-height: 70px; resize: vertical; }
+  .field-select { width: 100%; height: 44px; background: #08090b; border: 1px solid #1f2130; border-radius: 8px; color: #f1f5f9; font-size: 14px; outline: none; padding: 0 36px 0 12px; appearance: none; cursor: pointer; }
+  .field-wrap { margin-bottom: 10px; }
+  .sel-wrap { position: relative; }
+  .sel-arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+
+  /* Buttons */
+  .btn { height: 40px; padding: 0 14px; border-radius: 8px; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: 13px; flex-shrink: 0; transition: opacity 0.15s; }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: #3b82f6; }
+  .btn-ghost { background: transparent; border: 1px solid #1f2130 !important; color: #94a3b8 !important; }
+  .btn-danger { background: #ef4444; }
+  .btn-success { background: #22c55e; }
+  .btn-lg { height: 48px; font-size: 15px; padding: 0 20px; }
+  .btn-full { width: 100%; }
+
+  /* Badge */
+  .badge { border-radius: 8px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+  /* Sheet overlay */
+  .sheet-overlay { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; justify-content: flex-end; }
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.8); }
+  .sheet-panel { position: relative; background: #101115; border-radius: 20px 20px 0 0; border: 1px solid #1f2130; border-bottom: none; max-height: 92vh; width: 100%; display: flex; flex-direction: column; animation: slideUp 0.25s ease; box-sizing: border-box; }
+  .sheet-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid #1f2130; flex-shrink: 0; }
+  .sheet-title { font-size: 17px; font-weight: 800; color: #f1f5f9; }
+  .sheet-close { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; }
+  .sheet-body { overflow-y: auto; padding: 18px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 16px)); flex: 1; box-sizing: border-box; width: 100%; }
+
+  /* Toast */
+  .toasts { position: fixed; bottom: 76px; right: 16px; z-index: 500; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast { background: #101115; border-radius: 14px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); max-width: 300px; animation: toastIn 0.25s ease; }
+  .toast-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Avatar */
+  .ava { border-radius: 30%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; overflow: hidden; }
+
+  /* KPI card */
+  .kpi-card { background: #101115; border: 1px solid #1f2130; border-radius: 14px; padding: 16px; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 20px; }
+
+  /* Spinner */
+  .spin { animation: spin 1s linear infinite; }
+  .spinner-wrap { display: flex; align-items: center; justify-content: center; height: 200px; }
+
+  /* Empty state */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; gap: 12px; }
+  .empty-icon { width: 56px; height: 56px; background: rgba(59,130,246,0.14); border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+
+  /* Tabs */
+  .tab-scroll { display: flex; overflow-x: auto; padding: 0 20px 14px; gap: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tab-scroll::-webkit-scrollbar { display: none; }
+  .tab-btn { height: 36px; padding: 0 14px; border-radius: 20px; border: 1px solid #1f2130; background: transparent; color: #94a3b8; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
+  .tab-btn.active { border-color: #3b82f6; background: rgba(59,130,246,0.14); color: #3b82f6; }
+
+  /* Search bar */
+  .search-wrap { padding: 0 20px 12px; position: relative; }
+  .search-icon { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); color: #475569; pointer-events: none; }
+  .search-input { width: 100%; height: 48px; background: #101115; border: 1px solid #1f2130; border-radius: 10px; padding: 0 14px 0 40px; color: #f1f5f9; font-size: 14px; outline: none; }
+
+  /* Mobile padding */
+  .mob-pb { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Login */
+  .login-wrap { min-height: 100vh; background: #08090b; display: flex; }
+  .login-hero { flex: 1; background: linear-gradient(160deg,#08090b 0%,#0c1220 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; position: relative; overflow: hidden; }
+  .login-hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 50%,rgba(59,130,246,0.1) 0%,transparent 65%); pointer-events: none; }
+  .login-form { width: 440px; background: #101115; display: flex; flex-direction: column; justify-content: center; padding: 56px 48px; border-left: 1px solid #1f2130; }
+
+  /* Confirm */
+  .confirm-text { font-size: 14px; color: #94a3b8; margin-bottom: 24px; line-height: 1.7; }
+  .confirm-btns { display: flex; gap: 10px; }
+
+  /* Password toggle */
+  .pw-wrap { position: relative; }
+  .pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #475569; }
+
+  /* QR */
+  .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .qr-canvas-wrap { background: #fff; border-radius: 16px; padding: 16px; border: 1px solid #1f2130; }
+
+  /* Detail rows */
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1f2130; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { font-size: 12px; color: #94a3b8; font-weight: 600; }
+  .detail-value { font-size: 13px; color: #f1f5f9; font-weight: 700; }
+
+  @media (max-width: 767px) {
+    .login-hero { display: none; }
+    .login-form { width: 100%; background: #08090b; padding: 32px 24px; border-left: none; }
+    .sidebar { display: none; }
+    .page-content { padding-bottom: 72px; }
+  }
+  @media (min-width: 768px) {
+    .bottom-nav { display: none; }
+    .toasts { bottom: 20px; }
+  }
+</style>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPA_URL = 'https://jspmnyqirvnozvxezkcs.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpzcG1ueXFpcnZub3p2eGV6a2NzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NzQ0OTUsImV4cCI6MjA5NjM1MDQ5NX0.21znTlZd6f6OxHm7gy-7VwF3wYPshm-ZIFPm8sFsMx0';
+  window._vxSupa = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+
+  // Auth state listener
+  window._vxSupa.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      const u = session.user;
+      appUser = {
+        id: u.id,
+        nome: u.user_metadata?.full_name || u.email.split('@')[0],
+        email: u.email,
+        role: 'admin',
+        avatar: u.user_metadata?.avatar_url || null,
+        ativo: true
+      };
+      renderApp();
+    } else if (event === 'SIGNED_OUT') {
+      appUser = null;
+      renderLogin();
+    }
+  });
+</script>
+
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ── CONFIG ──
+const SUPABASE_URL = "";
+const SUPABASE_KEY = "";
+
+// ── TOKENS ──
+const C = {
+  bg:"#08090b", card:"#101115",
+  border:"#1f2130", borderFocus:"#3b82f6",
+  blue:"#3b82f6",   blueDim:"rgba(59,130,246,0.14)",
+  orange:"#f97316", orangeDim:"rgba(249,115,22,0.14)",
+  green:"#22c55e",  greenDim:"rgba(34,197,94,0.12)",
+  red:"#ef4444",    redDim:"rgba(239,68,68,0.12)",
+  yellow:"#eab308", yellowDim:"rgba(234,179,8,0.12)",
+  purple:"#a855f7", purpleDim:"rgba(168,85,247,0.14)",
+  text:"#f1f5f9", sub:"#94a3b8", muted:"#475569",
+};
+
+// ── UTILS ──
+const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const fmt = d => new Date(d).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const fmtD = d => new Date(d).toLocaleDateString("pt-BR");
+const esc = s => String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const isMobile = () => window.innerWidth < 768;
+
+// ── LOCAL DB (localStorage — persiste ao fechar a aba) ──
+const LS = {
+  get:(k,d=[])=>{
+    try{
+      const v = localStorage.getItem("vx2_"+k);
+      return v ? JSON.parse(v) : d;
+    }catch{
+      return d;
+    }
+  },
+  set:(k,v)=>{
+    try{
+      localStorage.setItem("vx2_"+k, JSON.stringify(v));
+    }catch(e){
+      console.warn("localStorage cheio ou bloqueado:", e);
+    }
+  },
+};
+
+function seedDB(){
+  // Always ensure kaua user exists
+  const users = LS.get("usuarios") || [];
+  if(!users.find(u=>u.email==="kaua1234")){
+    users.unshift({id:"kaua-001",nome:"Kauã Junior",email:"kaua1234",senha:"1234",role:"admin",ativo:true,avatar:null,telefone:"(48)99924-6043",cargo:"Administrador",matricula:"ADM-000",created_at:new Date().toISOString()});
+    LS.set("usuarios", users);
+  }
+  if(LS.get("ok",false)) return;
+  const a=uid(),b=uid(),c=uid(),d=uid();
+  LS.set("usuarios",[
+    {id:"kaua-001",nome:"Kauã Junior", email:"kaua1234",senha:"1234",role:"admin",ativo:true,avatar:null,telefone:"(48)99924-6043",cargo:"Administrador",matricula:"ADM-000",created_at:new Date().toISOString()},
+    {id:a,nome:"Administrador",  email:"admin@vexor.com",  senha:"admin123",  role:"admin",   ativo:true,avatar:null,telefone:"(11)99999-0001",cargo:"Administrador",      matricula:"ADM-001",created_at:new Date().toISOString()},
+    {id:b,nome:"João Silva",     email:"joao@vexor.com",   senha:"tecnico123",role:"tecnico", ativo:true,avatar:null,telefone:"(11)98888-0002",cargo:"Técnico Mecânico",   matricula:"TEC-001",created_at:new Date().toISOString()},
+    {id:c,nome:"Ana Costa",      email:"ana@vexor.com",    senha:"gestor123", role:"gestor",  ativo:true,avatar:null,telefone:"(11)97777-0003",cargo:"Gestora de Operações",matricula:"GES-001",created_at:new Date().toISOString()},
+    {id:d,nome:"Carlos Lima",    email:"carlos@vexor.com", senha:"tecnico123",role:"tecnico", ativo:true,avatar:null,telefone:"(11)96666-0004",cargo:"Técnico Elétrico",   matricula:"TEC-002",created_at:new Date().toISOString()},
+  ]);
+  LS.set("ordens",[
+    {id:uid(),numero:"OS-001",titulo:"Manutenção Preventiva - Prensa 02",  descricao:"Troca de rolamentos e lubrificação.",prioridade:"Alta", status:"Concluída",   equipe_ids:[b],   imagens:[],created_at:new Date(Date.now()-172800000).toISOString(),updated_at:new Date().toISOString()},
+    {id:uid(),numero:"OS-002",titulo:"Correção - Sistema Hidráulico",       descricao:"Vazamento na linha B.",              prioridade:"Alta", status:"Em Andamento",equipe_ids:[b,c], imagens:[],created_at:new Date(Date.now()-86400000).toISOString(), updated_at:new Date().toISOString()},
+    {id:uid(),numero:"OS-003",titulo:"Inspeção - Painel Elétrico",          descricao:"Inspeção semestral de rotina.",       prioridade:"Media",status:"Planejada",   equipe_ids:[c],   imagens:[],created_at:new Date(Date.now()-3600000).toISOString(),  updated_at:new Date().toISOString()},
+    {id:uid(),numero:"OS-004",titulo:"Troca de Rolamento - Transportador",  descricao:"Peça solicitada ao almox.",          prioridade:"Alta", status:"Aguardando",  equipe_ids:[b,d], imagens:[],created_at:new Date(Date.now()-7200000).toISOString(),  updated_at:new Date().toISOString()},
+  ]);
+  LS.set("estoque",[
+    {id:uid(),nome:"Rolamento 6205",     categoria:"Rolamentos",   localizacao:"A1-Prat.03",quantidade:2,  unidade:"un",minimo:5, created_at:new Date().toISOString()},
+    {id:uid(),nome:"Parafuso M8 x 25mm", categoria:"Fixadores",    localizacao:"B2-Gav.07", quantidade:125,unidade:"un",minimo:20,created_at:new Date().toISOString()},
+    {id:uid(),nome:"Óleo Hidráulico 68", categoria:"Lubrificantes",localizacao:"C1-Tambor", quantidade:18, unidade:"L", minimo:10,created_at:new Date().toISOString()},
+    {id:uid(),nome:"Correia B-58",        categoria:"Correias",     localizacao:"A2-Prat.01",quantidade:1,  unidade:"un",minimo:3, created_at:new Date().toISOString()},
+    {id:uid(),nome:"Mancal UCP 205",     categoria:"Mancais",      localizacao:"B1-Prat.02",quantidade:4,  unidade:"un",minimo:2, created_at:new Date().toISOString()},
+  ]);
+  LS.set("ok",true);
+}
+
+// ── DATABASE API ──
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const DB = {
+  async login(email,senha){
+    await wait(600);
+    const u=LS.get("usuarios").find(x=>x.email===email&&x.senha===senha);
+    if(!u) throw new Error("Credenciais inválidas");
+    if(!u.ativo) throw new Error("Usuário desativado");
+    return {...u, senha:undefined};
+  },
+  async getUsuarios(){
+    await wait(150);
+    return LS.get("usuarios").map(u=>({...u,senha:undefined}));
+  },
+  async createUsuario(data){
+    await wait(400);
+    const rec={...data,id:uid(),ativo:true,avatar:null,created_at:new Date().toISOString()};
+    const arr=LS.get("usuarios"); arr.push(rec); LS.set("usuarios",arr);
+    return {...rec, senha:undefined};
+  },
+  async updateUsuario(id,upd){
+    await wait(300);
+    LS.set("usuarios",LS.get("usuarios").map(u=>u.id===id?{...u,...upd}:u));
+  },
+  async deleteUsuario(id){
+    await wait(300);
+    LS.set("usuarios",LS.get("usuarios").filter(u=>u.id!==id));
+  },
+  async getOrdens(){
+    await wait(150);
+    return [...LS.get("ordens")].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  },
+  async createOrdem(data){
+    await wait(400);
+    const n=LS.get("ordens").length;
+    const rec={...data,id:uid(),numero:`OS-${String(n+1).padStart(3,"0")}`,
+      status:data.status||"Planejada",equipe_ids:data.equipe_ids||[],imagens:[],
+      created_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+    const arr=LS.get("ordens"); arr.unshift(rec); LS.set("ordens",arr); return rec;
+  },
+  async updateOrdem(id,upd){
+    await wait(300);
+    const u={...upd,updated_at:new Date().toISOString()};
+    LS.set("ordens",LS.get("ordens").map(o=>o.id===id?{...o,...u}:o));
+  },
+  async deleteOrdem(id){
+    await wait(300);
+    LS.set("ordens",LS.get("ordens").filter(o=>o.id!==id));
+  },
+  async uploadImg(ordemId,b64){
+    await wait(200);
+    LS.set("ordens",LS.get("ordens").map(o=>o.id===ordemId?{...o,imagens:[...(o.imagens||[]),b64]}:o));
+  },
+  async getEstoque(){
+    await wait(150);
+    return [...LS.get("estoque")].sort((a,b)=>a.nome.localeCompare(b.nome));
+  },
+  async createItem(data){
+    await wait(400);
+    const rec={...data,id:uid(),created_at:new Date().toISOString()};
+    const arr=LS.get("estoque"); arr.push(rec); LS.set("estoque",arr); return rec;
+  },
+  async updateItem(id,upd){
+    await wait(250);
+    LS.set("estoque",LS.get("estoque").map(i=>i.id===id?{...i,...upd}:i));
+  },
+  async deleteItem(id){
+    await wait(300);
+    LS.set("estoque",LS.get("estoque").filter(i=>i.id!==id));
+  },
+};
+
+// ── STATUS MAP ──
+const S_MAP = {
+  "Concluída":{bg:C.greenDim,c:C.green},
+  "Em Andamento":{bg:C.blueDim,c:C.blue},
+  "Planejada":{bg:C.purpleDim,c:C.purple},
+  "Aguardando":{bg:C.yellowDim,c:C.yellow},
+  "Cancelada":{bg:C.redDim,c:C.red},
+  "Alta":{bg:C.redDim,c:C.red},
+  "Media":{bg:C.yellowDim,c:C.yellow},
+  "Baixa":{bg:C.greenDim,c:C.green},
+  admin:{bg:C.purpleDim,c:C.purple},
+  gestor:{bg:C.blueDim,c:C.blue},
+  tecnico:{bg:C.orangeDim,c:C.orange},
+};
+const R_COLOR = {admin:C.purple, gestor:C.blue, tecnico:C.orange};
+const STATUS_OS = ["Planejada","Aguardando","Em Andamento","Concluída","Cancelada"];
+const PRIOS = ["Alta","Media","Baixa"];
+const TIPO_MANUT = ["Preventiva","Corretiva","Preditiva","Melhoria"];
+const CATS_DEFAULT = ["Rolamentos","Fixadores","Lubrificantes","Correias","Mancais","Elétrico","Hidráulico","Outro"];
+function getCats(){ const c=LS.get('categorias_estoque',null); return c&&c.length>0?c:CATS_DEFAULT; }
+function saveCats(arr){ LS.set('categorias_estoque', arr); }
+const ROLES_OPT = [{v:"admin",l:"Admin"},{v:"gestor",l:"Gestor"},{v:"tecnico",l:"Técnico"}];
+const STATUS_FUNC = [
+  {v:"ativo",     l:"Ativo",      c:"#22c55e", ic:"●"},
+  {v:"ferias",    l:"Férias",     c:"#3b82f6", ic:"●"},
+  {v:"afastado",  l:"Afastado",   c:"#eab308", ic:"●"},
+  {v:"desligado", l:"Desligado",  c:"#ef4444", ic:"●"},
+];
+const EPI_CATS = ["EPI","Ferramenta","Equipamento","Uniforme","Outro"];
+const LINE_DATA = [{d:"16/05",v:18},{d:"17/05",v:22},{d:"18/05",v:15},{d:"19/05",v:28},{d:"20/05",v:35},{d:"21/05",v:35},{d:"22/05",v:30}];
+
+// ── SVG ICONS ──
+const ICONS = {
+  dashboard: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+  os: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`,
+  estoque: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`,
+  equipe: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  logout: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+  plus: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  x: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  pencil: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  check: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  search: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  alert: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  checkCircle: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  loader: `<svg class="spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+  loaderSm: `<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
+  camera: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  save: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  wrench: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+  qr: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1a2 2 0 0 1 2 2v1"/></svg>`,
+  share: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+  book: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+  bell: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+  editName: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+  copy: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+  copyDone: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  eye: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  eyeOff: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`,
+  externalLink: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
+  userX: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="8" x2="23" y2="14"/><line x1="23" y1="8" x2="17" y2="14"/></svg>`,
+  userCheck: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>`,
+  shieldCheck: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`,
+  hardHat: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v2z"/><path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5"/><path d="M4 15v-3a8 8 0 0 1 16 0v3"/></svg>`,
+  chevDown: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+  trendUp: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+  phone: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.6 1.24h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.18 6.18l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`,
+  clock: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  clipList: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>`,
+  box: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`,
+  userTie: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>`,
+  mapPin: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+};
+
+// ── QR CODE (simplified local generator) ──
+function qrEncode(text){
+  const data=[];
+  for(let i=0;i<text.length;i++) data.push(text.charCodeAt(i));
+  const GF_EXP=new Uint8Array(512),GF_LOG=new Uint8Array(256);
+  let x=1;
+  for(let i=0;i<255;i++){GF_EXP[i]=x;GF_LOG[x]=i;x<<=1;if(x&256)x^=285;}
+  for(let i=255;i<512;i++) GF_EXP[i]=GF_EXP[i-255];
+  const gfMul=(a,b)=>a&&b?GF_EXP[GF_LOG[a]+GF_LOG[b]]:0;
+  const gfPoly=(ec)=>{
+    let p=[1];
+    for(let i=0;i<ec;i++){const q=[1,GF_EXP[i]];const r=new Array(p.length+q.length-1).fill(0);for(let j=0;j<p.length;j++) for(let k=0;k<q.length;k++) r[j+k]^=gfMul(p[j],q[k]);p=r;}
+    return p;
+  };
+  const gfDiv=(msg,gen)=>{const r=[...msg,...new Array(gen.length-1).fill(0)];for(let i=0;i<msg.length;i++){const c=r[i];if(c) for(let j=0;j<gen.length;j++) r[i+j]^=gfMul(gen[j],c);}return r.slice(msg.length);};
+  const SIZE=37;
+  const bits=[];
+  const pushBits=(v,n)=>{for(let i=n-1;i>=0;i--) bits.push((v>>i)&1);};
+  pushBits(4,4); pushBits(data.length,8);
+  for(const b of data) pushBits(b,8);
+  for(let i=0;i<4&&bits.length%8!==0;i++) bits.push(0);
+  while(bits.length%8!==0) bits.push(0);
+  const pads=[236,17];let pi=0;
+  while(bits.length<872){for(let i=0;i<8;i++) bits.push((pads[pi]>>(7-i))&1);pi=(pi+1)%2;}
+  const dataBytes=[];
+  for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++) b=(b<<1)|bits[i+j];dataBytes.push(b);}
+  const ecGen=gfPoly(18);
+  const ec=gfDiv(dataBytes,ecGen);
+  const allBytes=[...dataBytes,...ec];
+  const M=Array.from({length:SIZE},()=>new Array(SIZE).fill(null));
+  const setMod=(r,c,v)=>{if(r>=0&&r<SIZE&&c>=0&&c<SIZE)M[r][c]=v;};
+  const isFree=(r,c)=>r>=0&&r<SIZE&&c>=0&&c<SIZE&&M[r][c]===null;
+  const finder=(r,c)=>{for(let dr=-1;dr<=7;dr++) for(let dc=-1;dc<=7;dc++){if(dr<0||dr>6||dc<0||dc>6) setMod(r+dr,c+dc,false);else if(dr===0||dr===6||dc===0||dc===6||(dr>=2&&dr<=4&&dc>=2&&dc<=4)) setMod(r+dr,c+dc,true);else setMod(r+dr,c+dc,false);}};
+  finder(0,0);finder(0,SIZE-7);finder(SIZE-7,0);
+  const align=(r,c)=>{for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){setMod(r+dr,c+dc,dr===0&&dc===0||Math.abs(dr)===2||Math.abs(dc)===2);}};
+  align(30,30);
+  for(let i=8;i<SIZE-8;i++){if(M[6][i]===null)M[6][i]=(i%2===0);if(M[i][6]===null)M[i][6]=(i%2===0);}
+  M[SIZE-8][8]=true;
+  const fmtPos=[[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[7,8],[8,8],[8,7],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0]];
+  const fmtPos2=[[SIZE-1,8],[SIZE-2,8],[SIZE-3,8],[SIZE-4,8],[SIZE-5,8],[SIZE-6,8],[SIZE-7,8],[8,SIZE-8],[8,SIZE-7],[8,SIZE-6],[8,SIZE-5],[8,SIZE-4],[8,SIZE-3],[8,SIZE-2],[8,SIZE-1]];
+  for(const[r,c]of[...fmtPos,...fmtPos2]) if(M[r][c]===null) M[r][c]=false;
+  let bi=0,up=true;
+  for(let col=SIZE-1;col>=1;col-=2){
+    if(col===6) col=5;
+    for(let row=0;row<SIZE;row++){
+      const r=up?SIZE-1-row:row;
+      for(let d=0;d<2;d++){
+        const c=col-d;
+        if(isFree(r,c)){const bit=bi<allBytes.length*8?((allBytes[Math.floor(bi/8)]>>(7-(bi%8)))&1):0;M[r][c]=((r+c)%2===0)?!bit:!!bit;bi++;}
+      }
+    }
+    up=!up;
+  }
+  const fmt15=0b011010101011011;
+  for(let i=0;i<15;i++){
+    const b=(fmt15>>i)&1;
+    if(i<6){M[8][i]=!!b;M[i][8]=!!b;}
+    else if(i===6){M[8][7]=!!b;M[7][8]=!!b;}
+    else if(i<9){M[8][15-i+1]=!!b;M[15-i+1][8]=!!b;}
+    else{M[8][SIZE-15+i]=!!b;M[SIZE-15+i][8]=!!b;}
+  }
+  return {matrix:M,size:SIZE};
+}
+
+function renderQR(text, size=200){
+  try {
+    const {matrix,size:n}=qrEncode(text);
+    const cell=size/n;
+    let rects='';
+    for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+      if(matrix[r][c]) rects+=`<rect x="${c*cell}" y="${r*cell}" width="${cell+0.5}" height="${cell+0.5}" fill="#000"/>`;
+    }
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="border-radius:10px"><rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
+  } catch(e) {
+    return `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;background:#fff;border-radius:10px">${ICONS.loader}</div>`;
+  }
+}
+
+// ── VEXOR LOGO ──
+function logoSVG(size=36){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none">
+    <defs>
+      <linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient>
+      <linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="55%" stop-color="#1e40af"/><stop offset="100%" stop-color="#f97316"/></linearGradient>
+    </defs>
+    <circle cx="50" cy="50" r="47" stroke="url(#lg2)" stroke-width="3" fill="none"/>
+    <polygon points="18,18 30,18 50,62 38,62" fill="url(#lg1)"/>
+    <polygon points="62,18 82,18 70,42 58,42" fill="#e2e8f0"/>
+    <polygon points="42,20 58,20 50,36" fill="#f97316"/>
+  </svg>`;
+}
+
+function brandHTML(sm=false){
+  const sz = sm ? 28 : 36;
+  return `<div style="display:flex;align-items:center;gap:10px">
+    ${logoSVG(sz)}
+    <div>
+      <div style="font-size:${sm?13:15}px;font-weight:900;color:#f1f5f9;letter-spacing:0.12em;line-height:1">VEXOR</div>
+      <div style="font-size:${sm?7:8}px;color:#3b82f6;letter-spacing:0.3em">— CLOUD —</div>
+    </div>
+  </div>`;
+}
+
+// ── BADGE ──
+function badgeHTML(v){
+  const s=S_MAP[v]||{bg:"rgba(71,85,105,0.3)",c:C.sub};
+  return `<span class="badge" style="background:${s.bg};color:${s.c}">${esc(v)}</span>`;
+}
+
+// ── AVATAR ──
+function avaHTML(u, size=36){
+  if(u?.avatar) return `<img src="${esc(u.avatar)}" style="width:${size}px;height:${size}px;border-radius:${size*0.3}px;object-fit:cover;flex-shrink:0;" alt="">`;
+  const ini=(u?.nome||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  const col=R_COLOR[u?.role]||C.blue;
+  return `<div class="ava" style="width:${size}px;height:${size}px;border-radius:${size*0.3}px;background:${col}33;border:1px solid ${col}44;font-size:${size*0.34}px;color:${col};">${esc(ini)}</div>`;
+}
+
+// ── TOAST SYSTEM ──
+let toasts = [];
+function showToast(msg, type="success"){
+  const id = uid();
+  toasts.push({id,msg,type});
+  renderToasts();
+  setTimeout(()=>{
+    toasts = toasts.filter(t=>t.id!==id);
+    renderToasts();
+  },3000);
+}
+function renderToasts(){
+  const wrap = document.getElementById('toast-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = toasts.map(t=>{
+    const col = t.type==="error"?C.red : t.type==="warning"?C.yellow : C.green;
+    return `<div class="toast" style="border:1px solid ${col}">
+      <div class="toast-dot" style="background:${col}"></div>
+      <span style="font-size:13px;color:#f1f5f9">${esc(t.msg)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── SHEET SYSTEM ──
+let sheetStack = [];
+function openSheet(html, title, onClose){
+  const id = uid();
+  const overlay = document.createElement('div');
+  overlay.className = 'sheet-overlay';
+  overlay.id = 'sheet-' + id;
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;justify-content:flex-end;';
+  overlay.innerHTML = `
+    <div class="sheet-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.8);"></div>
+    <div class="sheet-panel" style="position:relative;background:#101115;border-radius:20px 20px 0 0;border:1px solid #1f2130;border-bottom:none;max-height:92vh;width:100%;display:flex;flex-direction:column;animation:slideUp 0.25s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid #1f2130;flex-shrink:0;">
+        <div style="font-size:17px;font-weight:800;color:#f1f5f9;">${esc(title)}</div>
+        <button style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;" class="sheet-close-btn">${ICONS.x}</button>
+      </div>
+      <div style="overflow-y:auto;padding:18px 20px 32px;flex:1;width:100%;">${html}</div>
+    </div>`;
+
+  // Append to #app so it inherits the correct width inside the iframe
+  const root = document.getElementById('app') || document.body;
+  root.appendChild(overlay);
+  sheetStack.push(id);
+
+  const close = ()=>{
+    overlay.remove();
+    sheetStack = sheetStack.filter(s=>s!==id);
+    if(onClose) onClose();
+  };
+  overlay.querySelector('.sheet-backdrop').addEventListener('click', close);
+  overlay.querySelector('.sheet-close-btn').addEventListener('click', close);
+  return {overlay, close, id};
+}
+
+// ── CONFIRM DIALOG ──
+function openConfirm(label, onOk){
+  let sh;
+  const html = `
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:20px;line-height:1.6">
+      Excluir <strong style="color:#f1f5f9">${esc(label)}</strong>?<br>Esta ação não pode ser desfeita.
+    </p>
+    <div style="display:flex;gap:8px">
+      <button id="conf-cancel" style="flex:1;height:36px;border-radius:8px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer">Cancelar</button>
+      <button id="conf-ok"     style="flex:1;height:36px;border-radius:8px;border:none;background:#ef4444;color:#fff;font-size:13px;font-weight:700;cursor:pointer">Excluir</button>
+    </div>`;
+  sh = openSheet(html, 'Confirmar exclusão');
+  sh.overlay.querySelector('#conf-cancel').addEventListener('click', sh.close);
+  sh.overlay.querySelector('#conf-ok').addEventListener('click', ()=>{ sh.close(); onOk(); });
+}
+
+// ── LINE CHART (canvas-based) ──
+function renderLineChart(canvasId){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const pad={top:16,right:16,bottom:28,left:32};
+  const cw=W-pad.left-pad.right, ch=H-pad.top-pad.bottom;
+  const vals=LINE_DATA.map(d=>d.v);
+  const maxV=Math.max(...vals)+5;
+  ctx.clearRect(0,0,W,H);
+  // Grid lines
+  ctx.strokeStyle='#1f2130'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.top+ch*(i/4);
+    ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(pad.left+cw,y); ctx.stroke();
+  }
+  // X labels
+  ctx.fillStyle='#475569'; ctx.font='10px system-ui'; ctx.textAlign='center';
+  LINE_DATA.forEach((d,i)=>{
+    const x=pad.left+(i/(LINE_DATA.length-1))*cw;
+    ctx.fillText(d.d, x, H-6);
+  });
+  // Y labels
+  ctx.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const v=Math.round(maxV*(1-i/4));
+    const y=pad.top+ch*(i/4);
+    ctx.fillText(v, pad.left-4, y+4);
+  }
+  // Line gradient
+  const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+ch);
+  grad.addColorStop(0,'rgba(59,130,246,0.3)');
+  grad.addColorStop(1,'rgba(59,130,246,0)');
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top+ch);
+  LINE_DATA.forEach((d,i)=>{
+    const x=pad.left+(i/(LINE_DATA.length-1))*cw;
+    const y=pad.top+ch*(1-(d.v/maxV));
+    i===0 ? ctx.lineTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.left+cw, pad.top+ch);
+  ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+  // Line
+  ctx.beginPath(); ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2.5; ctx.lineJoin='round';
+  LINE_DATA.forEach((d,i)=>{
+    const x=pad.left+(i/(LINE_DATA.length-1))*cw;
+    const y=pad.top+ch*(1-(d.v/maxV));
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // Dots
+  LINE_DATA.forEach((d,i)=>{
+    const x=pad.left+(i/(LINE_DATA.length-1))*cw;
+    const y=pad.top+ch*(1-(d.v/maxV));
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle='#3b82f6'; ctx.fill();
+    ctx.strokeStyle='#08090b'; ctx.lineWidth=2; ctx.stroke();
+  });
+}
+
+// ── PIE CHART (canvas-based) ──
+function renderPieChart(canvasId, data){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas||!data.length) return;
+  const ctx=canvas.getContext('2d');
+  const cx=50,cy=50,r=42,ri=25;
+  ctx.clearRect(0,0,100,100);
+  let angle=-Math.PI/2;
+  const total=data.reduce((s,d)=>s+d.v,0);
+  data.forEach(d=>{
+    const slice=(d.v/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath(); ctx.fillStyle=d.c; ctx.fill();
+    angle+=slice;
+  });
+  ctx.beginPath(); ctx.arc(cx,cy,ri,0,Math.PI*2);
+  ctx.fillStyle='#101115'; ctx.fill();
+}
+
+// ── FIELD HELPERS ──
+function fieldHTML(label, id, value, type='text', placeholder='', req=false, rows=0){
+  const labelHTML = label ? `<div class="field-label">${esc(label)}${req?' *':''}</div>` : '';
+  if(rows){
+    return `<div class="field-wrap">${labelHTML}<textarea class="field-textarea" id="${id}" placeholder="${esc(placeholder)}" rows="${rows}">${esc(value)}</textarea></div>`;
+  }
+  if(type==='password'){
+    return `<div class="field-wrap">${labelHTML}
+      <div class="pw-wrap">
+        <input class="field-input" id="${id}" type="password" value="${esc(value)}" placeholder="${esc(placeholder)}" style="padding:0 44px 0 14px">
+        <button class="pw-toggle" onclick="togglePw('${id}',this)">${ICONS.eyeOff}</button>
+      </div></div>`;
+  }
+  return `<div class="field-wrap">${labelHTML}<input class="field-input" id="${id}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}"></div>`;
+}
+function togglePw(id, btn){
+  const inp=document.getElementById(id);
+  if(!inp) return;
+  if(inp.type==='password'){inp.type='text';btn.innerHTML=ICONS.eye;}
+  else{inp.type='password';btn.innerHTML=ICONS.eyeOff;}
+}
+
+function selHTML(label, id, value, opts){
+  const labelHTML = label ? `<div class="field-label">${esc(label)}</div>` : '';
+  const options = opts.map(o=>{
+    const v = typeof o==='object' ? o.v : o;
+    const l = typeof o==='object' ? o.l : o;
+    return `<option value="${esc(v)}" ${v===value?'selected':''}>${esc(l)}</option>`;
+  }).join('');
+  return `<div class="field-wrap">${labelHTML}
+    <div class="sel-wrap">
+      <select class="field-select" id="${id}">${options}</select>
+      <div class="sel-arrow">${ICONS.chevDown}</div>
+    </div></div>`;
+}
+
+// ── SPINNER ──
+function spinnerHTML(){ return `<div class="spinner-wrap">${ICONS.loader.replace('width="24"','width="28"').replace('height="24"','height="28"').replace('stroke="currentColor"','stroke="#3b82f6"')}</div>`; }
+
+// ── EMPTY ──
+function emptyHTML(title='Sem dados', sub=''){
+  return `<div class="empty">
+    <div class="empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${C.blue}" stroke-width="2" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="12" x2="15" y2="12"/></svg></div>
+    <div style="font-size:16px;font-weight:700;color:#f1f5f9">${esc(title)}</div>
+    ${sub?`<div style="font-size:13px;color:#94a3b8">${esc(sub)}</div>`:''}
+  </div>`;
+}
+
+// ── APP STATE ──
+let appUser = null;
+let appPage = 'dashboard';
+let bellNotifications = []; // {id, msg, time}
+
+function addBellNotification(msg){
+  bellNotifications.unshift({id: uid(), msg, time: new Date()});
+  if(bellNotifications.length > 20) bellNotifications = bellNotifications.slice(0,20);
+  updateBellBadge();
+}
+
+function updateBellBadge(){
+  const badge = document.getElementById('bell-badge');
+  if(badge){
+    if(bellNotifications.length > 0){
+      badge.style.display = 'flex';
+      badge.textContent = bellNotifications.length > 9 ? '9+' : bellNotifications.length;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function openBellPanel(){
+  const html = bellNotifications.length === 0
+    ? `<div class="empty"><div class="empty-icon">${ICONS.bell}</div><div style="font-size:14px;font-weight:700;color:#f1f5f9">Sem notificações</div><div style="font-size:12px;color:#94a3b8">Alertas de estoque aparecerão aqui</div></div>`
+    : `<div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+          <button onclick="clearBellNotifications()" style="background:none;border:none;color:#475569;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline">Limpar tudo</button>
+        </div>
+        ${bellNotifications.map(n=>`<div style="background:#08090b;border-radius:10px;padding:12px 14px;border-left:3px solid ${C.red}">
+          <div style="font-size:13px;color:#f1f5f9;font-weight:600;margin-bottom:3px">${esc(n.msg)}</div>
+          <div style="font-size:11px;color:#475569">${n.time.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</div>
+        </div>`).join('')}
+      </div>`;
+  openSheet(html, `🔔 Notificações (${bellNotifications.length})`);
+}
+
+function clearBellNotifications(){
+  bellNotifications = [];
+  updateBellBadge();
+  closeTopSheet();
+}
+
+function openEditNameModal(){
+  const html = `<div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:14px">Como você quer ser chamado dentro do app?</div>
+    ${fieldHTML('Seu nome','edit-name-input', appUser.nome, 'text', 'Ex: João Silva', true)}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1;height:36px;border-radius:8px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:36px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer" id="save-name-btn">Salvar</button>
+    </div>
+  </div>`;
+  const sh = openSheet(html, 'Editar nome');
+  sh.overlay.querySelector('#save-name-btn')?.addEventListener('click', async ()=>{
+    const novo = document.getElementById('edit-name-input')?.value?.trim()||'';
+    if(novo.length < 2){ showToast('Nome muito curto','error'); return; }
+    await DB.updateUsuario(appUser.id, {nome: novo});
+    // Update appUser in memory
+    const users = LS.get('usuarios');
+    const u = users.find(x=>x.id===appUser.id);
+    if(u) u.nome = novo;
+    LS.set('usuarios', users);
+    appUser = {...appUser, nome: novo};
+    sh.close();
+    showToast('Nome atualizado! ✓');
+    renderApp();
+  });
+  setTimeout(()=>{
+    const inp = document.getElementById('edit-name-input');
+    if(inp){ inp.focus(); inp.select(); }
+  }, 100);
+}
+
+// ── MAIN RENDER ──
+function renderApp(){
+  const app = document.getElementById('app');
+  if(!appUser){
+    renderLogin();
+    return;
+  }
+  const mob = isMobile();
+  app.innerHTML = `
+    <div style="min-height:100vh;background:#08090b;display:flex;flex-direction:column;${mob?'padding-bottom:calc(68px + env(safe-area-inset-bottom, 0px))':''}">
+      <!-- Topbar -->
+      <div class="topbar">
+        ${brandHTML(true)}
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#475569;background:#08090b;border-radius:20px;padding:4px 10px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#475569"></div>
+            Local DB
+          </div>
+          <!-- Bell -->
+          <button onclick="openBellPanel()" style="position:relative;width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#94a3b8;cursor:pointer;flex-shrink:0">
+            ${ICONS.bell}
+            <span id="bell-badge" style="display:none;position:absolute;top:-5px;right:-5px;width:18px;height:18px;background:#ef4444;border-radius:50%;font-size:9px;font-weight:800;color:#fff;align-items:center;justify-content:center;border:2px solid #08090b;"></span>
+          </button>
+          <!-- Avatar + edit name -->
+          <button onclick="openEditNameModal()" style="display:flex;align-items:center;gap:6px;background:transparent;border:none;cursor:pointer;padding:0;">
+            ${avaHTML(appUser, 34)}
+          </button>
+        </div>
+      </div>
+      <!-- Desktop layout -->
+      ${!mob ? `<div class="layout">
+        <div class="sidebar">
+          ${[
+            {id:'dashboard',l:'Início',ic:'dashboard'},
+            {id:'os',l:'OS',ic:'os'},
+            {id:'estoque',l:'Estoque',ic:'estoque'},
+            {id:'equipe',l:'Equipe',ic:'equipe'},
+            {id:'conhecimento',l:'Conhecimento',ic:'book'},
+          ].map(n=>`
+            <button class="nav-btn ${appPage===n.id?'active':''}" onclick="navTo('${n.id}')">
+              ${ICONS[n.ic]}${n.l}
+            </button>`).join('')}
+          <div style="flex:1"></div>
+          <button class="nav-btn" onclick="doLogout()">
+            ${ICONS.logout} Sair
+          </button>
+        </div>
+        <div class="page-content" id="page-content"></div>
+      </div>` : `<div class="page-content" id="page-content"></div>`}
+      <!-- Mobile bottom nav -->
+      ${mob ? `<div class="bottom-nav">
+        ${[
+          {id:'dashboard',l:'Início',ic:'dashboard'},
+          {id:'os',l:'OS',ic:'os'},
+          {id:'estoque',l:'Estoque',ic:'estoque'},
+          {id:'conhecimento',l:'Guias',ic:'book'},
+          {id:'equipe',l:'Equipe',ic:'equipe'},
+          {id:'sair',l:'Sair',ic:'logout'},
+        ].map(n=>`
+          <button class="bottom-btn ${appPage===n.id?'active':''}" onclick="${n.id==='sair'?'doLogout()':'navTo(\''+n.id+'\')'}">
+            ${ICONS[n.ic].replace('width="17"','width="20"').replace('height="17"','height="20"')}
+            ${n.l}
+          </button>`).join('')}
+      </div>` : ''}
+      <!-- Toasts -->
+      <div class="toasts" id="toast-wrap"></div>
+    </div>`;
+
+  renderPage();
+  updateBellBadge();
+}
+
+function navTo(page){
+  appPage = page;
+  // Update nav buttons
+  document.querySelectorAll('.nav-btn,.bottom-btn').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('onclick')?.includes(`'${page}'`));
+  });
+  renderPage();
+}
+
+function doLogout(){
+  appUser = null;
+  appPage = 'dashboard';
+  renderLogin();
+}
+
+function renderPage(){
+  const pc = document.getElementById('page-content');
+  if(!pc) return;
+  pc.innerHTML = spinnerHTML();
+  switch(appPage){
+    case 'dashboard': renderDashboard(pc); break;
+    case 'os': renderOSPage(pc); break;
+    case 'estoque': renderEstoquePage(pc); break;
+    case 'equipe': renderEquipePage(pc); break;
+    case 'conhecimento': renderConhecimentoPage(pc); break;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BASE DE CONHECIMENTO
+// ════════════════════════════════════════════════════════════════
+
+const CONHECIMENTO_CATS = [
+  {v:'seguranca',   l:'🦺 Segurança',     c:'#ef4444'},
+  {v:'manutencao',  l:'🔧 Manutenção',    c:'#3b82f6'},
+  {v:'qualidade',   l:'✅ Qualidade',     c:'#22c55e'},
+  {v:'operacional', l:'⚙️ Operacional',   c:'#f59e0b'},
+  {v:'eletrico',    l:'⚡ Elétrico',      c:'#eab308'},
+  {v:'procedimento',l:'📋 Procedimentos', c:'#8b5cf6'},
+  {v:'outro',       l:'📌 Outros',        c:'#94a3b8'},
+];
+
+const CONHECIMENTO_SEED = [
+  {id:'kb1', titulo:'Regras de Segurança — Equipamentos', categoria:'seguranca', prioridade:'Alta', conteudo:`1. Sempre usar EPI antes de operar qualquer equipamento.\n2. Verificar aterramento elétrico antes de ligar máquinas.\n3. Nunca operar equipamento com defeito — acionar manutenção imediatamente.\n4. Sinalizar área de risco com cones e faixas.\n5. Em caso de emergência: desligar o quadro geral e acionar responsável.`, tags:['EPI','segurança','emergência'], autor:'Sistema', created_at: new Date().toISOString()},
+  {id:'kb2', titulo:'Manutenção Preventiva — Rolamentos', categoria:'manutencao', prioridade:'Alta', conteudo:`1. Inspecionar rolamentos a cada 500 horas de operação.\n2. Verificar temperatura (máx. 70°C) e ruído anormal.\n3. Lubrificar com graxa NLGI 2 a cada 250 horas.\n4. Substituir quando houver folga excessiva ou vibração.\n5. Registrar data e horário de cada intervenção na OS.\n6. Guardar rolamento substituído para análise de causa raiz.`, tags:['rolamento','lubrificação','preventiva'], autor:'Sistema', created_at: new Date().toISOString()},
+  {id:'kb3', titulo:'Procedimento de Troca de Correias', categoria:'procedimento', prioridade:'Media', conteudo:`1. Desligar máquina e aguardar parada total.\n2. Bloquear acionamento elétrico (LOTO).\n3. Medir deflexão antes da troca — registrar.\n4. Instalar correia nova sem forçar — usar ferramenta adequada.\n5. Ajustar tensão conforme especificação do fabricante.\n6. Verificar alinhamento das polias antes de religar.\n7. Testar em vazio por 5 minutos e conferir aquecimento.`, tags:['correia','LOTO','transmissão'], autor:'Sistema', created_at: new Date().toISOString()},
+  {id:'kb4', titulo:'Padrão de Qualidade — Inspeção Visual', categoria:'qualidade', prioridade:'Media', conteudo:`1. Inspecionar 100% dos itens na primeira peça do lote.\n2. Verificar dimensões críticas com instrumentos calibrados.\n3. Registrar não conformidade com foto e descrição no sistema.\n4. Segregar peças suspeitas em área identificada como "EM ANÁLISE".\n5. Nunca liberar lote sem aprovação do responsável de qualidade.\n6. Rastrear lote de origem em caso de reclamação.`, tags:['qualidade','inspeção','não conformidade'], autor:'Sistema', created_at: new Date().toISOString()},
+  {id:'kb5', titulo:'Procedimento LOTO — Bloqueio e Etiquetagem', categoria:'eletrico', prioridade:'Alta', conteudo:`1. Identificar todas as fontes de energia do equipamento.\n2. Notificar operadores sobre a manutenção.\n3. Desligar o equipamento pelos meios normais de desligamento.\n4. Isolar as fontes de energia (desligar disjuntores, fechar válvulas).\n5. Aplicar dispositivo de bloqueio + cadeado pessoal.\n6. Afixar etiqueta de perigo com nome e contato.\n7. Verificar ausência de energia antes de iniciar trabalho.\n8. NUNCA remover cadeado de outro técnico.`, tags:['LOTO','elétrico','bloqueio','segurança'], autor:'Sistema', created_at: new Date().toISOString()},
+];
+
+function seedConhecimento(){
+  const atual = LS.get('conhecimento', null);
+  if(atual && atual.length > 0) return;
+  LS.set('conhecimento', CONHECIMENTO_SEED);
+}
+
+let conhecimentoState = { busca:'', filtroCat:'todas', filtroP:'todas' };
+
+async function renderConhecimentoPage(container){
+  seedConhecimento();
+  conhecimentoState.busca = '';
+  conhecimentoState.filtroCat = 'todas';
+  conhecimentoState.filtroP = 'todas';
+  renderConhecimentoList(container);
+}
+
+function renderConhecimentoList(container){
+  const isAdmin = ['admin','gestor'].includes(appUser.role);
+  const {busca, filtroCat, filtroP} = conhecimentoState;
+  const todos = LS.get('conhecimento', []);
+
+  const filtered = todos.filter(k=>{
+    const mB = !busca || k.titulo.toLowerCase().includes(busca.toLowerCase())
+      || (k.conteudo||'').toLowerCase().includes(busca.toLowerCase())
+      || (k.tags||[]).some(t=>t.toLowerCase().includes(busca.toLowerCase()));
+    const mC = filtroCat==='todas' || k.categoria===filtroCat;
+    const mP = filtroP==='todas' || k.prioridade===filtroP;
+    return mB && mC && mP;
+  });
+
+  const prioColors = {Alta:C.red, Media:C.yellow, Baixa:C.green};
+
+  container.innerHTML = `<div style="padding-bottom:20px;animation:fadeIn 0.25s ease">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 6px">
+      <div>
+        <div style="font-size:20px;font-weight:800;color:#f1f5f9">📚 Conhecimento</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:2px">${todos.length} guias · ${filtered.length} exibidos</div>
+      </div>
+      ${isAdmin?`<button class="btn btn-primary" onclick="conhecimentoCreate()">${ICONS.plus} Novo</button>`:''}
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <div class="search-icon">${ICONS.search}</div>
+      <input class="search-input" id="kb-search" placeholder="Buscar por título, conteúdo ou tag..." value="${esc(busca)}">
+    </div>
+
+    <!-- Category tabs -->
+    <div class="tab-scroll">
+      ${[{v:'todas',l:'Todos',c:C.blue}, ...CONHECIMENTO_CATS].map(c=>{
+        const cnt = c.v==='todas' ? todos.length : todos.filter(k=>k.categoria===c.v).length;
+        const act = filtroCat===c.v;
+        return `<button class="tab-btn ${act?'active':''}" style="${act?`border-color:${c.c};background:${c.c}22;color:${c.c}`:''}" onclick="kbFilterCat('${c.v}')">
+          ${c.l} (${cnt})
+        </button>`;
+      }).join('')}
+    </div>
+
+    <!-- Priority filter -->
+    <div style="display:flex;gap:6px;padding:0 20px 14px;flex-wrap:wrap">
+      ${[{v:'todas',l:'Todas'}, {v:'Alta',l:'🔴 Alta'},{v:'Media',l:'🟡 Média'},{v:'Baixa',l:'🟢 Baixa'}].map(p=>{
+        const act = filtroP===p.v;
+        const col = prioColors[p.v]||C.blue;
+        return `<button onclick="kbFilterPrio('${p.v}')" style="height:28px;padding:0 12px;border-radius:20px;background:${act?(p.v==='todas'?C.blueDim:col+'22'):'transparent'};border:1px solid ${act?(p.v==='todas'?C.blue:col):'#1f2130'};color:${act?(p.v==='todas'?C.blue:col):'#475569'};font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s">${p.l}</button>`;
+      }).join('')}
+    </div>
+
+    <!-- Cards -->
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+      ${filtered.length===0 ? emptyHTML('Nenhum guia encontrado','Crie o primeiro ou ajuste os filtros') :
+        filtered.map(k=>{
+          const cat = CONHECIMENTO_CATS.find(c=>c.v===k.categoria)||{l:'📌 Outros',c:'#94a3b8'};
+          const pCol = prioColors[k.prioridade]||C.blue;
+          const preview = (k.conteudo||'').split('\n')[0].replace(/^\d+\.\s*/,'').substring(0,80);
+          const linhas = (k.conteudo||'').split('\n').filter(l=>l.trim()).length;
+          return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="conhecimentoView('${k.id}')">
+            <div style="height:3px;background:${cat.c}"></div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:15px;font-weight:800;color:#f1f5f9;line-height:1.3;margin-bottom:6px">${esc(k.titulo)}</div>
+                  <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+                    <span style="font-size:10px;background:${cat.c}22;color:${cat.c};border-radius:6px;padding:2px 8px;font-weight:700">${cat.l}</span>
+                    <span style="font-size:10px;background:${pCol}22;color:${pCol};border-radius:6px;padding:2px 8px;font-weight:700">${k.prioridade}</span>
+                    <span style="font-size:10px;color:#475569">📝 ${linhas} itens</span>
+                  </div>
+                </div>
+                ${isAdmin?`<div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
+                  <button onclick="conhecimentoEdit('${k.id}')" style="width:30px;height:30px;background:transparent;border:1px solid #1f2130;border-radius:8px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">${ICONS.pencil.replace('width="15"','width="12"').replace('height="15"','height="12"')}</button>
+                  <button onclick="conhecimentoDelete('${k.id}')" style="width:30px;height:30px;background:transparent;border:1px solid #1f2130;border-radius:8px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center">${ICONS.trash.replace('width="15"','width="12"').replace('height="15"','height="12"')}</button>
+                </div>`:''}
+              </div>
+              <div style="font-size:12px;color:#475569;line-height:1.5;margin-top:8px;border-top:1px solid #1f2130;padding-top:8px">${esc(preview)}${preview.length>=80?'…':''}</div>
+              ${(k.tags||[]).length>0?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+                ${k.tags.map(t=>`<span style="font-size:10px;background:#101115;color:#475569;border-radius:5px;padding:2px 7px;border:1px solid #1f2130">#${esc(t)}</span>`).join('')}
+              </div>`:''}
+              <div style="font-size:10px;color:#334155;margin-top:8px">Por ${esc(k.autor||'—')} · ${fmtD(k.created_at)}</div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('kb-search')?.addEventListener('input', e=>{
+    conhecimentoState.busca = e.target.value;
+    renderConhecimentoList(container);
+  });
+}
+
+function kbFilterCat(v){
+  conhecimentoState.filtroCat = v;
+  const pc = document.getElementById('page-content');
+  if(pc) renderConhecimentoList(pc);
+}
+
+function kbFilterPrio(v){
+  conhecimentoState.filtroP = v;
+  const pc = document.getElementById('page-content');
+  if(pc) renderConhecimentoList(pc);
+}
+
+function conhecimentoView(id){
+  const k = LS.get('conhecimento',[]).find(x=>x.id===id);
+  if(!k) return;
+  const cat = CONHECIMENTO_CATS.find(c=>c.v===k.categoria)||{l:'📌 Outros',c:'#94a3b8'};
+  const prioColors = {Alta:C.red, Media:C.yellow, Baixa:C.green};
+  const pCol = prioColors[k.prioridade]||C.blue;
+  const linhas = (k.conteudo||'').split('\n').filter(l=>l.trim());
+
+  const html = `<div>
+    <!-- Badges -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="font-size:11px;background:${cat.c}22;color:${cat.c};border-radius:7px;padding:3px 10px;font-weight:700">${cat.l}</span>
+      <span style="font-size:11px;background:${pCol}22;color:${pCol};border-radius:7px;padding:3px 10px;font-weight:700">Prioridade ${k.prioridade}</span>
+    </div>
+
+    <!-- Conteúdo como lista numerada interativa -->
+    <div style="display:flex;flex-direction:column;gap:8px" id="kb-steps">
+      ${linhas.map((linha, i)=>{
+        const texto = linha.replace(/^\d+\.\s*/,'').trim();
+        if(!texto) return '';
+        return `<div id="kbs-${i}" onclick="kbToggleStep(${i})" style="display:flex;align-items:flex-start;gap:12px;background:#08090b;border-radius:12px;padding:12px 14px;cursor:pointer;border:1.5px solid #1f2130;transition:all 0.15s">
+          <div style="width:26px;height:26px;border-radius:8px;background:#101115;border:2px solid #1f2130;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:800;color:#475569;transition:all 0.15s" id="kbs-num-${i}">${i+1}</div>
+          <div style="font-size:13px;color:#f1f5f9;line-height:1.6;flex:1;padding-top:3px" id="kbs-txt-${i}">${esc(texto)}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Tags -->
+    ${(k.tags||[]).length>0?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">
+      ${k.tags.map(t=>`<span style="font-size:11px;background:#101115;color:#475569;border-radius:6px;padding:3px 9px;border:1px solid #1f2130">#${esc(t)}</span>`).join('')}
+    </div>`:''}
+
+    <!-- Meta -->
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #1f2130;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:11px;color:#475569">Por <strong style="color:#94a3b8">${esc(k.autor||'—')}</strong></div>
+      <div style="font-size:11px;color:#475569">${fmtD(k.created_at)}</div>
+    </div>
+  </div>`;
+
+  openSheet(html, k.titulo);
+}
+
+function kbToggleStep(i){
+  const box   = document.getElementById(`kbs-${i}`);
+  const num   = document.getElementById(`kbs-num-${i}`);
+  const txt   = document.getElementById(`kbs-txt-${i}`);
+  if(!box) return;
+  const done = box.dataset.done==='1';
+  box.dataset.done = done?'0':'1';
+  box.style.borderColor   = done ? '#1f2130'  : C.green;
+  box.style.background    = done ? '#08090b'  : C.green+'11';
+  num.style.background    = done ? '#101115'  : C.green+'33';
+  num.style.borderColor   = done ? '#1f2130'  : C.green;
+  num.style.color         = done ? '#475569'  : C.green;
+  num.innerHTML           = done ? String(i+1): ICONS.check.replace('width="10"','width="12"').replace('stroke="currentColor"','stroke="'+C.green+'"');
+  txt.style.color         = done ? '#f1f5f9'  : '#475569';
+  txt.style.textDecoration= done ? 'none'     : 'line-through';
+}
+
+function renderKBForm(init){
+  const isEdit = !!init?.id;
+  const f = {
+    titulo: init?.titulo||'',
+    categoria: init?.categoria||'manutencao',
+    prioridade: init?.prioridade||'Media',
+    conteudo: init?.conteudo||'',
+    tags: (init?.tags||[]).join(', '),
+  };
+  return `<div style="width:100%;box-sizing:border-box">
+    ${fieldHTML('Título *','kb-titulo',f.titulo,'text','Ex: Manutenção preventiva de rolamentos',true)}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${selHTML('Categoria','kb-cat',f.categoria, CONHECIMENTO_CATS.map(c=>({v:c.v,l:c.l})))}
+      ${selHTML('Prioridade','kb-prio',f.prioridade,[{v:'Alta',l:'🔴 Alta'},{v:'Media',l:'🟡 Média'},{v:'Baixa',l:'🟢 Baixa'}])}
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">Conteúdo — uma regra/passo por linha</div>
+      <textarea class="field-textarea" id="kb-conteudo" rows="8" placeholder="1. Primeiro passo&#10;2. Segundo passo&#10;3. Terceiro passo">${esc(f.conteudo)}</textarea>
+    </div>
+    ${fieldHTML('Tags (separadas por vírgula)','kb-tags',f.tags,'text','Ex: rolamento, lubrificação, preventiva')}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1;height:38px;border-radius:10px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:38px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px" id="kb-save-btn">${ICONS.save} ${isEdit?'Atualizar':'Publicar'}</button>
+    </div>
+  </div>`;
+}
+
+function conhecimentoCreate(){
+  const sh = openSheet(renderKBForm(null), '📝 Novo Guia');
+  sh.overlay.querySelector('#kb-save-btn')?.addEventListener('click', ()=>{
+    const titulo = document.getElementById('kb-titulo')?.value?.trim()||'';
+    if(titulo.length<3){ showToast('Título muito curto','error'); return; }
+    const conteudo = document.getElementById('kb-conteudo')?.value?.trim()||'';
+    if(conteudo.length<5){ showToast('Adicione o conteúdo','error'); return; }
+    const tagsRaw = document.getElementById('kb-tags')?.value||'';
+    const tags = tagsRaw.split(',').map(t=>t.trim()).filter(Boolean);
+    const novo = {
+      id: uid(),
+      titulo,
+      categoria: document.getElementById('kb-cat')?.value||'manutencao',
+      prioridade: document.getElementById('kb-prio')?.value||'Media',
+      conteudo,
+      tags,
+      autor: appUser.nome,
+      created_at: new Date().toISOString(),
+    };
+    const todos = LS.get('conhecimento',[]);
+    LS.set('conhecimento', [novo, ...todos]);
+    showToast('Guia publicado! ✓');
+    sh.close();
+    const pc = document.getElementById('page-content');
+    if(pc) renderConhecimentoList(pc);
+  });
+}
+
+function conhecimentoEdit(id){
+  const k = LS.get('conhecimento',[]).find(x=>x.id===id);
+  if(!k) return;
+  const sh = openSheet(renderKBForm(k), '✏️ Editar Guia');
+  sh.overlay.querySelector('#kb-save-btn')?.addEventListener('click', ()=>{
+    const titulo = document.getElementById('kb-titulo')?.value?.trim()||'';
+    if(titulo.length<3){ showToast('Título muito curto','error'); return; }
+    const conteudo = document.getElementById('kb-conteudo')?.value?.trim()||'';
+    const tagsRaw = document.getElementById('kb-tags')?.value||'';
+    const tags = tagsRaw.split(',').map(t=>t.trim()).filter(Boolean);
+    const todos = LS.get('conhecimento',[]).map(x=>x.id===id
+      ? {...x, titulo, categoria:document.getElementById('kb-cat')?.value||x.categoria,
+          prioridade:document.getElementById('kb-prio')?.value||x.prioridade,
+          conteudo, tags, updated_at:new Date().toISOString()}
+      : x);
+    LS.set('conhecimento', todos);
+    showToast('Guia atualizado! ✓');
+    sh.close();
+    const pc = document.getElementById('page-content');
+    if(pc) renderConhecimentoList(pc);
+  });
+}
+
+function conhecimentoDelete(id){
+  const k = LS.get('conhecimento',[]).find(x=>x.id===id);
+  if(!k) return;
+  openConfirm(k.titulo, ()=>{
+    LS.set('conhecimento', LS.get('conhecimento',[]).filter(x=>x.id!==id));
+    showToast('Guia removido.','warning');
+    const pc = document.getElementById('page-content');
+    if(pc) renderConhecimentoList(pc);
+  });
+}
+const ROLE_OPTIONS = [
+  {
+    role: 'admin',
+    label: 'Admin',
+    desc: 'Acesso total ao sistema',
+    email: 'admin@vexor.com',
+    senha: 'admin123',
+    color: C.purple,
+    dimColor: 'rgba(168,85,247,0.14)',
+    icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`,
+  },
+  {
+    role: 'gestor',
+    label: 'Gestor',
+    desc: 'Gerencia equipes e OS',
+    email: 'ana@vexor.com',
+    senha: 'gestor123',
+    color: C.blue,
+    dimColor: 'rgba(59,130,246,0.14)',
+    icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>`,
+  },
+  {
+    role: 'tecnico',
+    label: 'Técnico',
+    desc: 'Executa ordens de serviço',
+    email: 'joao@vexor.com',
+    senha: 'tecnico123',
+    color: C.orange,
+    dimColor: 'rgba(249,115,22,0.14)',
+    icon: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+  },
+];
+
+let selectedRole = null;
+
+function renderLogin(){
+  const app = document.getElementById('app');
+  selectedRole = null;
+  app.innerHTML = `
+  <div style="min-height:100vh;background:#08090b;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div style="width:100%;max-width:400px;">
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:32px;">
+        <svg width="52" height="52" viewBox="0 0 100 100" fill="none" style="margin:0 auto 12px;display:block">
+          <circle cx="50" cy="50" r="47" stroke="#3b82f6" stroke-width="3" fill="none"/>
+          <polygon points="18,18 30,18 50,62 38,62" fill="#60a5fa"/>
+          <polygon points="62,18 82,18 70,42 58,42" fill="#e2e8f0"/>
+          <polygon points="42,20 58,20 50,36" fill="#f97316"/>
+        </svg>
+        <div style="font-size:22px;font-weight:700;letter-spacing:.06em;color:#f1f5f9">VEXOR CLOUD</div>
+        <div style="font-size:13px;color:#4a5068;margin-top:4px">Sistema de Gestão Industrial</div>
+      </div>
+
+      <!-- Card -->
+      <div style="background:#101115;border:1px solid #1f2130;border-radius:16px;padding:32px;">
+        
+        <!-- Tabs -->
+        <div style="display:flex;background:#08090b;border-radius:10px;padding:4px;margin-bottom:24px;gap:4px">
+          <button id="tab-login" onclick="switchTab('login')" style="flex:1;height:36px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;background:#3b82f6;color:#fff;transition:all .15s">Entrar</button>
+          <button id="tab-signup" onclick="switchTab('signup')" style="flex:1;height:36px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:#4a5068;transition:all .15s">Criar conta</button>
+        </div>
+
+        <!-- Login form -->
+        <div id="form-login">
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#8b99b5;display:block;margin-bottom:5px">E-mail</label>
+            <input id="login-email" type="email" placeholder="seu@email.com" style="width:100%;height:44px;background:#08090b;border:1px solid #1f2130;border-radius:8px;padding:0 14px;font-size:14px;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#1f2130'">
+          </div>
+          <div style="margin-bottom:20px">
+            <label style="font-size:12px;font-weight:600;color:#8b99b5;display:block;margin-bottom:5px">Senha</label>
+            <input id="login-senha" type="password" placeholder="••••••••" style="width:100%;height:44px;background:#08090b;border:1px solid #1f2130;border-radius:8px;padding:0 14px;font-size:14px;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#1f2130'" onkeydown="if(event.key==='Enter')doEmailLogin()">
+          </div>
+          <div id="login-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:#f87171;margin-bottom:14px"></div>
+          <button id="login-btn" onclick="doEmailLogin()" style="width:100%;height:48px;background:#3b82f6;border:none;border-radius:10px;font-size:15px;font-weight:700;color:#fff;cursor:pointer">Entrar</button>
+        </div>
+
+        <!-- Signup form -->
+        <div id="form-signup" style="display:none">
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#8b99b5;display:block;margin-bottom:5px">Nome</label>
+            <input id="signup-nome" type="text" placeholder="Seu nome" style="width:100%;height:44px;background:#08090b;border:1px solid #1f2130;border-radius:8px;padding:0 14px;font-size:14px;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#1f2130'">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;font-weight:600;color:#8b99b5;display:block;margin-bottom:5px">E-mail</label>
+            <input id="signup-email" type="email" placeholder="seu@email.com" style="width:100%;height:44px;background:#08090b;border:1px solid #1f2130;border-radius:8px;padding:0 14px;font-size:14px;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#1f2130'">
+          </div>
+          <div style="margin-bottom:20px">
+            <label style="font-size:12px;font-weight:600;color:#8b99b5;display:block;margin-bottom:5px">Senha</label>
+            <input id="signup-senha" type="password" placeholder="Mínimo 6 caracteres" style="width:100%;height:44px;background:#08090b;border:1px solid #1f2130;border-radius:8px;padding:0 14px;font-size:14px;color:#f1f5f9;outline:none" onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#1f2130'" onkeydown="if(event.key==='Enter')doSignup()">
+          </div>
+          <div id="signup-error" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:#f87171;margin-bottom:14px"></div>
+          <div id="signup-success" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:#4ade80;margin-bottom:14px"></div>
+          <button id="signup-btn" onclick="doSignup()" style="width:100%;height:48px;background:#3b82f6;border:none;border-radius:10px;font-size:15px;font-weight:700;color:#fff;cursor:pointer">Criar conta grátis</button>
+        </div>
+
+        <div style="text-align:center;margin-top:16px;font-size:12px;color:#4a5068">
+          Teste grátis por 7 dias · <a href="https://wa.me/5548999246043" style="color:#3b82f6">Suporte</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('tab-login').style.background = isLogin ? '#3b82f6' : 'transparent';
+  document.getElementById('tab-login').style.color = isLogin ? '#fff' : '#4a5068';
+  document.getElementById('tab-signup').style.background = isLogin ? 'transparent' : '#3b82f6';
+  document.getElementById('tab-signup').style.color = isLogin ? '#4a5068' : '#fff';
+}
+
+async function doSignup() {
+  const nome = document.getElementById('signup-nome').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const senha = document.getElementById('signup-senha').value;
+  const btn = document.getElementById('signup-btn');
+  const err = document.getElementById('signup-error');
+  const suc = document.getElementById('signup-success');
+
+  err.style.display = 'none';
+  suc.style.display = 'none';
+
+  if (!nome || !email || !senha) { err.style.display='block'; err.textContent='Preencha todos os campos.'; return; }
+  if (senha.length < 6) { err.style.display='block'; err.textContent='Senha precisa ter pelo menos 6 caracteres.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Criando conta...';
+
+  try {
+    if (window._vxSupa) {
+      const { data, error } = await window._vxSupa.auth.signUp({
+        email, password: senha,
+        options: { data: { full_name: nome } }
+      });
+      if (error) throw error;
+      // Also add to local DB
+      const users = LS.get('usuarios') || [];
+      users.push({id: data.user?.id || uid(), nome, email, senha, role:'admin', ativo:true, avatar:null, telefone:'', cargo:'Administrador', matricula:'USR-'+Date.now(), created_at:new Date().toISOString()});
+      LS.set('usuarios', users);
+      appUser = {id: data.user?.id, nome, email, role:'admin', ativo:true, avatar:null};
+      renderApp();
+    } else {
+      throw new Error('Serviço indisponível');
+    }
+  } catch(e) {
+    err.style.display = 'block';
+    err.textContent = e.message === 'User already registered' ? 'Este e-mail já está cadastrado.' : 'Erro ao criar conta: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Criar conta grátis';
+  }
+}
+
+async function doEmailLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+
+  if (!email || !senha) {
+    err.style.display = 'block';
+    err.textContent = 'Preencha e-mail e senha.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  err.style.display = 'none';
+
+  // Try Supabase first
+  try {
+    const { data, error } = await window._vxSupa.auth.signInWithPassword({ email, password: senha });
+    if (error) throw error;
+    return; // onAuthStateChange handles the rest
+  } catch(e) {
+    // Fallback to local DB
+    try {
+      const user = await DB.login(email, senha);
+      appUser = user;
+      renderApp();
+      return;
+    } catch(e2) {
+      err.style.display = 'block';
+      err.textContent = 'E-mail ou senha incorretos.';
+      btn.disabled = false;
+      btn.textContent = 'Entrar';
+    }
+  }
+}
+
+async function loginGoogle() {
+  const { error } = await window._vxSupa.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if (error) alert('Erro ao conectar com Google: ' + error.message);
+}
+
+// Keep old function for compatibility
+async function doRoleLogin(){
+  const app = document.getElementById('app');
+  selectedRole = null;
+  app.innerHTML = `
+  <style>
+    .role-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px 20px;
+      border-radius: 14px;
+      border: 2px solid #1f2130;
+      background: #101115;
+      cursor: pointer;
+      transition: all 0.18s;
+      width: 100%;
+      text-align: left;
+    }
+    .role-card:hover { border-color: #334155; background: #13151c; }
+    .role-card.selected { border-color: var(--rc); background: var(--rc-dim); }
+    .role-icon-wrap {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--rc-dim); border: 1px solid var(--rc-border);
+      color: var(--rc); flex-shrink: 0;
+      transition: all 0.18s;
+    }
+    .role-card.selected .role-icon-wrap { background: var(--rc); color: #fff; }
+    .role-check {
+      width: 22px; height: 22px; border-radius: 50%; border: 2px solid #334155;
+      margin-left: auto; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      transition: all 0.18s;
+    }
+    .role-card.selected .role-check { background: var(--rc); border-color: var(--rc); }
+    @keyframes loginFade { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    .login-anim { animation: loginFade 0.35s ease; }
+    .enter-btn {
+      width: 100%; height: 58px; border-radius: 14px; border: none;
+      font-size: 16px; font-weight: 800; color: #fff; cursor: pointer;
+      transition: all 0.18s; letter-spacing: 0.04em;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .enter-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .enter-btn:not(:disabled):hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .enter-btn:not(:disabled):active { transform: translateY(0); }
+  </style>
+  <div style="min-height:100vh;background:#08090b;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="login-anim" style="width:100%;max-width:420px;display:flex;flex-direction:column;gap:0;">
+
+      <!-- Brand -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:44px;">
+        ${logoSVG(72)}
+        <div style="text-align:center;">
+          <div style="font-size:32px;font-weight:900;color:#f1f5f9;letter-spacing:0.18em;line-height:1;">VEXOR</div>
+          <div style="font-size:10px;color:#3b82f6;letter-spacing:0.4em;margin-top:5px;">— CLOUD —</div>
+        </div>
+        <div style="font-size:13px;color:#475569;margin-top:2px;">Sistema de Gestão Industrial</div>
+      </div>
+
+      <!-- Heading -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:800;color:#f1f5f9;margin-bottom:4px;">Como deseja entrar?</div>
+        <div style="font-size:13px;color:#94a3b8;">Selecione seu perfil de acesso</div>
+      </div>
+
+      <!-- Role cards -->
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px;" id="role-list">
+        ${ROLE_OPTIONS.map(r => `
+          <button
+            class="role-card"
+            id="role-card-${r.role}"
+            style="--rc:${r.color};--rc-dim:${r.dimColor};--rc-border:${r.color}33;"
+            onclick="selectRole('${r.role}')"
+          >
+            <div class="role-icon-wrap">${r.icon}</div>
+            <div style="flex:1;">
+              <div style="font-size:15px;font-weight:800;color:#f1f5f9;">${r.label}</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${r.desc}</div>
+            </div>
+            <div class="role-check" id="role-check-${r.role}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="display:none;" id="role-checkmark-${r.role}"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Enter button -->
+      <button
+        class="enter-btn"
+        id="enter-btn"
+        disabled
+        onclick="doRoleLogin()"
+        style="background:#3b82f6;"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Entrar
+      </button>
+
+      <div style="text-align:center;margin-top:24px;font-size:11px;color:#334155;">© 2024 Vexor Cloud</div>
+    </div>
+  </div>`;
+}
+
+function selectRole(role){
+  selectedRole = role;
+  const chosen = ROLE_OPTIONS.find(r => r.role === role);
+
+  // Update all cards visually
+  ROLE_OPTIONS.forEach(r => {
+    const card = document.getElementById('role-card-' + r.role);
+    const mark = document.getElementById('role-checkmark-' + r.role);
+    if(!card) return;
+    card.classList.toggle('selected', r.role === role);
+    if(mark) mark.style.display = r.role === role ? 'block' : 'none';
+  });
+
+  // Update enter button color and enable it
+  const btn = document.getElementById('enter-btn');
+  if(btn && chosen){
+    btn.disabled = false;
+    btn.style.background = chosen.color;
+  }
+}
+
+async function doRoleLogin(){
+  if(!selectedRole) return;
+  const chosen = ROLE_OPTIONS.find(r => r.role === selectedRole);
+  if(!chosen) return;
+  const btn = document.getElementById('enter-btn');
+  if(btn){ btn.disabled = true; btn.innerHTML = ICONS.loaderSm + ' Entrando...'; }
+  try {
+    const user = await DB.login(chosen.email, chosen.senha);
+    appUser = user;
+    renderApp();
+  } catch(e) {
+    if(btn){ btn.disabled = false; btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Entrar`; }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════════════════════════════════════
+async function renderDashboard(container){
+  const [ordens, estoque] = await Promise.all([DB.getOrdens(), DB.getEstoque()]);
+  const criticos = estoque.filter(i=>i.quantidade<=i.minimo);
+  const pie = [
+    {name:"Concluídas",v:ordens.filter(o=>o.status==="Concluída").length,c:C.green},
+    {name:"Andamento", v:ordens.filter(o=>o.status==="Em Andamento").length,c:C.blue},
+    {name:"Aguardando",v:ordens.filter(o=>o.status==="Aguardando").length,c:C.yellow},
+    {name:"Planejadas",v:ordens.filter(o=>o.status==="Planejada").length,c:C.purple},
+  ].filter(d=>d.v>0);
+  const kpis=[
+    {l:"Total OS",   v:ordens.length,                                      c:C.blue,  ic:'os'},
+    {l:"Andamento",  v:ordens.filter(o=>o.status==="Em Andamento").length, c:C.orange,ic:'wrench'},
+    {l:"Concluídas", v:ordens.filter(o=>o.status==="Concluída").length,   c:C.green, ic:'checkCircle'},
+    {l:"Crit. Est.", v:criticos.length,                                    c:C.red,   ic:'alert'},
+  ];
+  const today = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+
+  container.innerHTML = `<div style="display:flex;flex-direction:column;gap:16px;padding-bottom:20px;animation:fadeIn 0.25s ease">
+    <div style="padding:20px 20px 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:20px;font-weight:800;color:#f1f5f9">Olá, ${esc(appUser.nome.split(" ")[0])} 👋</div>
+        <button onclick="openEditNameModal()" title="Editar nome" style="background:none;border:none;cursor:pointer;color:#475569;padding:4px;display:flex;align-items:center">${ICONS.editName}</button>
+      </div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:2px">${today}</div>
+    </div>
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      ${kpis.map(k=>`
+        <div class="kpi-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em">${k.l}</div>
+            <div style="background:${k.c}22;border-radius:8px;padding:6px">${ICONS[k.ic]?.replace('width="15"',`width="15"`).replace('stroke="currentColor"',`stroke="${k.c}"`) || ''}</div>
+          </div>
+          <div style="font-size:34px;font-weight:900;color:${k.c};line-height:1">${k.v}</div>
+        </div>`).join('')}
+    </div>
+    <!-- Charts -->
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:14px">
+      <div class="card" style="padding:16px 16px 8px">
+        <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:12px">Ordens — 7 dias</div>
+        <canvas id="line-chart" width="340" height="120" style="max-width:100%"></canvas>
+      </div>
+      ${pie.length>0 ? `<div class="card" style="padding:16px">
+        <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:12px">Status das OS</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <canvas id="pie-chart" width="100" height="100" style="flex-shrink:0"></canvas>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            ${pie.map(d=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px">
+              <div style="width:7px;height:7px;border-radius:50%;background:${d.c};flex-shrink:0"></div>
+              <span style="color:#94a3b8;flex:1">${d.name}</span>
+              <span style="color:#f1f5f9;font-weight:700">${d.v}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>` : ''}
+    </div>
+    <!-- Recent orders -->
+    <div style="padding:0 20px">
+      <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:12px">Últimas Ordens</div>
+      <div class="card" style="overflow:hidden">
+        ${ordens.length===0 ? emptyHTML('Sem ordens','Crie a primeira OS') :
+          ordens.slice(0,5).map((o,i)=>`
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 16px;${i<4?'border-bottom:1px solid #1f2130':''}">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.titulo)}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">${esc(o.numero)} · ${fmtD(o.created_at)}</div>
+              </div>
+              ${badgeHTML(o.status)}
+            </div>`).join('')}
+      </div>
+    </div>
+    <!-- Critical stock -->
+    ${criticos.length>0 ? `<div style="padding:0 20px">
+      <div style="font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:12px">⚠️ Estoque Crítico</div>
+      <div class="card" style="border-color:${C.red}44;overflow:hidden">
+        ${criticos.map((c,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;${i<criticos.length-1?'border-bottom:1px solid #1f2130':''}">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(c.nome)}</div>
+              <div style="font-size:11px;color:#94a3b8">${esc(c.localizacao)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:17px;font-weight:800;color:${C.red}">${c.quantidade} ${esc(c.unidade)}</div>
+              <div style="font-size:10px;color:#475569">mín. ${c.minimo}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+  </div>`;
+
+  setTimeout(()=>{
+    renderLineChart('line-chart');
+    if(pie.length) renderPieChart('pie-chart', pie);
+  }, 50);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ORDENS DE SERVIÇO
+// ════════════════════════════════════════════════════════════════
+let osState = { ordens:[], usuarios:[], filtro:'Todas', busca:'', saving:false };
+
+async function renderOSPage(container){
+  const [ordens, usuarios] = await Promise.all([DB.getOrdens(), DB.getUsuarios()]);
+  osState.ordens = ordens;
+  osState.usuarios = usuarios;
+  osState.filtro = osState.filtro || 'Todas';
+  osState.busca = '';
+  const canEdit = ['admin','gestor'].includes(appUser.role);
+  const canDel = appUser.role === 'admin';
+  renderOSList(container, canEdit, canDel);
+}
+
+function renderOSList(container, canEdit=true, canDel=false){
+  const {ordens, usuarios, filtro, busca} = osState;
+  const TABS = ["Todas","Em Andamento","Aguardando","Planejada","Concluída"];
+  const filtered = ordens.filter(o=>{
+    const mF = filtro==="Todas"||o.status===filtro;
+    const mB = !busca||o.titulo.toLowerCase().includes(busca.toLowerCase())||o.numero.toLowerCase().includes(busca.toLowerCase());
+    return mF&&mB;
+  });
+
+  container.innerHTML = `<div style="padding-bottom:20px;animation:fadeIn 0.25s ease">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px">
+      <div style="font-size:20px;font-weight:800;color:#f1f5f9">Ordens de Serviço</div>
+      ${canEdit ? `<button class="btn btn-primary" id="os-new-btn">${ICONS.plus} Nova OS</button>` : ''}
+    </div>
+    <div class="search-wrap">
+      <div class="search-icon">${ICONS.search}</div>
+      <input class="search-input" id="os-search" placeholder="Buscar por título ou número..." value="${esc(busca)}">
+    </div>
+    <div class="tab-scroll">
+      ${TABS.map(t=>`<button class="tab-btn ${filtro===t?'active':''}" onclick="osFilter('${t}')">${t}</button>`).join('')}
+    </div>
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+      ${filtered.length===0 ? emptyHTML('Nenhuma OS','Crie uma nova ordem de serviço') :
+        filtered.map(o=>{
+          const eq=(o.equipe_ids||[]).map(id=>usuarios.find(u=>u.id===id)).filter(Boolean);
+          const pCol=(S_MAP[o.prioridade]||{}).c||C.blue;
+          const tipoColors = {Preventiva:C.blue, Corretiva:C.red, Preditiva:C.purple, Melhoria:C.green};
+          const tipoCol = tipoColors[o.tipo]||C.blue;
+          const prazoTag = ()=>{
+            if(!o.prazo_final) return '';
+            const diff=Math.ceil((new Date(o.prazo_final)-new Date())/86400000);
+            const col=diff<0?C.red:diff<=2?C.yellow:C.green;
+            const lbl=diff<0?`${Math.abs(diff)}d atraso`:diff===0?'Hoje':`${diff}d`;
+            return `<span style="background:${col}22;color:${col};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700">⏰${lbl}</span>`;
+          };
+          const chk=o.checklist||[];
+          const chkProg=chk.length>0?`<span style="font-size:10px;color:${chk.filter(c=>c.feito).length===chk.length&&chk.length>0?C.green:C.yellow};font-weight:700">☑ ${chk.filter(c=>c.feito).length}/${chk.length}</span>`:'';
+          return `<div class="card" style="overflow:hidden">
+            <div style="height:3px;background:${pCol}"></div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <div style="flex:1;min-width:0;margin-right:8px">
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
+                    <div style="font-size:11px;color:#3b82f6;font-weight:700">${esc(o.numero)}</div>
+                    ${o.tipo?`<span style="font-size:10px;background:${tipoCol}22;color:${tipoCol};border-radius:5px;padding:1px 6px;font-weight:700">${esc(o.tipo)}</span>`:''}
+                    ${prazoTag()}
+                    ${chkProg}
+                  </div>
+                  <div style="font-size:14px;font-weight:700;color:#f1f5f9;line-height:1.3">${esc(o.titulo)}</div>
+                  ${o.localizacao?`<div style="font-size:11px;color:#475569;margin-top:2px">📍 ${esc(o.localizacao)}</div>`:''}
+                </div>
+                ${badgeHTML(o.status)}
+              </div>
+              ${eq.length>0 ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                <div style="display:flex">
+                  ${eq.slice(0,4).map((u,i)=>`<div style="width:24px;height:24px;border-radius:7px;background:${(R_COLOR[u.role]||C.blue)}33;border:1px solid #1f2130;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:${R_COLOR[u.role]||C.blue};margin-left:${i>0?'-5px':'0'};z-index:${eq.length-i}">${esc(u.nome[0])}</div>`).join('')}
+                </div>
+                <span style="font-size:11px;color:#94a3b8">${esc(eq.map(u=>u.nome.split(" ")[0]).join(", "))}</span>
+              </div>` : ''}
+              <div style="font-size:11px;color:#475569;margin-bottom:10px">${fmtD(o.created_at)}</div>
+              <div style="display:flex;gap:8px">
+                <button onclick="osDetail('${o.id}')" style="flex:2;height:36px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:13px;font-weight:700;cursor:pointer">Ver detalhes</button>
+                <button onclick="osQR('${o.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.qr}</button>
+                ${canEdit ? `<button onclick="osEdit('${o.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.pencil}</button>` : ''}
+                ${canDel ? `<button onclick="osDelete('${o.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.trash}</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('os-search')?.addEventListener('input', e=>{
+    osState.busca = e.target.value;
+    renderOSList(container, canEdit, canDel);
+  });
+  document.getElementById('os-new-btn')?.addEventListener('click', ()=>osCreate());
+}
+
+function osFilter(tab){
+  osState.filtro = tab;
+  const container = document.getElementById('page-content');
+  if(container) renderOSList(container, ['admin','gestor'].includes(appUser.role), appUser.role==='admin');
+}
+
+function osCreate(){
+  const html = renderOSForm(null);
+  const sh = openSheet(html, 'Nova Ordem de Serviço');
+  setupOSForm(sh.overlay, null, async(form)=>{
+    sh.close();
+    try{ await DB.createOrdem(form); showToast("OS criada! ✓"); await reloadOS(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+function osEdit(id){
+  const os = osState.ordens.find(o=>o.id===id);
+  if(!os) return;
+  const html = renderOSForm(os);
+  const sh = openSheet(html, `Editar ${os.numero}`);
+  setupOSForm(sh.overlay, os, async(form)=>{
+    sh.close();
+    try{ await DB.updateOrdem(id, form); showToast("OS atualizada! ✓"); await reloadOS(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+async function osDelete(id){
+  const os = osState.ordens.find(o=>o.id===id);
+  openConfirm(os?.titulo||'OS', async()=>{
+    try{ await DB.deleteOrdem(id); showToast("OS excluída.","warning"); await reloadOS(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+function osDetail(id){
+  const os = osState.ordens.find(o=>o.id===id);
+  if(!os) return;
+  const canEdit = ['admin','gestor'].includes(appUser.role);
+  const tipoColors = {Preventiva:C.blue, Corretiva:C.red, Preditiva:C.purple, Melhoria:C.green};
+  const tipoCol = tipoColors[os.tipo]||C.blue;
+  const estoque = LS.get('estoque');
+
+  // --- prazo helper ---
+  function prazoTag(prazo){
+    if(!prazo) return '';
+    const diff = Math.ceil((new Date(prazo) - new Date()) / 86400000);
+    const col = diff < 0 ? C.red : diff <= 2 ? C.yellow : C.green;
+    const label = diff < 0 ? `${Math.abs(diff)}d atrasado` : diff===0 ? 'Vence hoje' : `${diff}d restantes`;
+    return `<span style="background:${col}22;color:${col};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700">${label}</span>`;
+  }
+
+  // --- checklist progress ---
+  const chk = os.checklist||[];
+  const chkDone = chk.filter(c=>c.feito).length;
+
+  const html = `<div>
+    <!-- Header badges -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div style="flex:1;margin-right:10px">
+        <div style="font-size:16px;font-weight:800;color:#f1f5f9;margin-bottom:8px">${esc(os.titulo)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          ${badgeHTML(os.prioridade)}${badgeHTML(os.status)}
+          ${os.tipo?`<span style="background:${tipoCol}22;color:${tipoCol};border-radius:8px;padding:3px 9px;font-size:11px;font-weight:700">${esc(os.tipo)}</span>`:''}
+          ${os.prazo_final?prazoTag(os.prazo_final):''}
+        </div>
+      </div>
+      <button onclick="osQRById('${os.id}')" style="height:34px;padding:0 10px;background:#08090b;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0">
+        ${ICONS.qr} QR
+      </button>
+    </div>
+
+    ${os.descricao?`<div style="font-size:13px;color:#94a3b8;line-height:1.7;background:#08090b;border-radius:10px;padding:12px 14px;margin-bottom:14px">${esc(os.descricao)}</div>`:''}
+
+    <!-- Info grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      ${os.data_execucao?`<div style="background:#08090b;border-radius:10px;padding:10px 12px"><div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:3px">📅 EXECUÇÃO</div><div style="font-size:13px;font-weight:700;color:#f1f5f9">${fmtD(os.data_execucao)}</div></div>`:''}
+      ${os.prazo_final?`<div style="background:#08090b;border-radius:10px;padding:10px 12px"><div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:3px">⏰ PRAZO</div><div style="font-size:13px;font-weight:700;color:#f1f5f9">${fmtD(os.prazo_final)}</div></div>`:''}
+      ${os.localizacao?`<div style="background:#08090b;border-radius:10px;padding:10px 12px;grid-column:1/-1"><div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:3px">📍 LOCALIZAÇÃO</div><div style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(os.localizacao)}</div></div>`:''}
+      ${os.terceiros?`<div style="background:#08090b;border-radius:10px;padding:10px 12px;grid-column:1/-1"><div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:3px">🤝 TERCEIROS</div><div style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(os.terceiros)}</div></div>`:''}
+    </div>
+
+    <!-- Equipe -->
+    ${(os.equipe_ids||[]).length>0?`<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">👷 Equipe</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${(os.equipe_ids||[]).map(eid=>{const u=osState.usuarios.find(x=>x.id===eid);return u?`
+          <div style="display:flex;align-items:center;gap:10px;background:#08090b;border-radius:10px;padding:9px 12px">
+            ${avaHTML(u,34)}
+            <div><div style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(u.nome)}</div><div style="font-size:11px;color:#94a3b8">${esc(u.cargo||u.role)}</div></div>
+          </div>`:''}).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- Atualizar Status -->
+    ${canEdit?`<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Atualizar Status</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        ${STATUS_OS.map(s=>{const sel=os.status===s;const sc=(S_MAP[s]||{}).c||C.blue;
+          return `<button onclick="osUpdateStatus('${os.id}','${s}')" style="height:36px;border-radius:8px;background:${sel?sc+'22':'transparent'};border:1px solid ${sel?sc:C.border};color:${sel?sc:C.sub};font-size:12px;font-weight:700;cursor:pointer">${sel?'✓ ':''}${s}</button>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- Checklist -->
+    ${chk.length>0||canEdit?`<div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">☑ Checklist</div>
+        ${chk.length>0?`<div style="font-size:11px;color:${chkDone===chk.length?C.green:C.yellow};font-weight:700">${chkDone}/${chk.length} concluídos</div>`:''}
+      </div>
+      ${chk.length>0?`<div style="background:#08090b;border-radius:10px;overflow:hidden" id="chklist-wrap">
+        ${chk.map((c,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${i<chk.length-1?'border-bottom:1px solid #1f2130':''}">
+            <button onclick="osToggleCheck('${os.id}',${i})" style="width:22px;height:22px;border-radius:6px;border:2px solid ${c.feito?C.green:'#334155'};background:${c.feito?C.green+'22':'transparent'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s">
+              ${c.feito?ICONS.check.replace('width="10"','width="12"').replace('stroke="currentColor"','stroke="'+C.green+'"'):''}
+            </button>
+            <span style="font-size:13px;color:${c.feito?'#475569':'#f1f5f9'};text-decoration:${c.feito?'line-through':'none'};flex:1">${esc(c.texto)}</span>
+          </div>`).join('')}
+      </div>`:'<div style="font-size:12px;color:#475569;padding:8px 0">Nenhum item no checklist.</div>'}
+    </div>`:''}
+
+    <!-- Horas trabalhadas -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">⏱ Horas Trabalhadas</div>
+      <div style="background:#08090b;border-radius:10px;padding:12px 14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div>
+            <div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:4px">INÍCIO</div>
+            <input type="time" id="det-hora-ini" value="${esc(os.hora_inicio||'')}" style="width:100%;height:34px;background:#101115;border:1px solid #1f2130;border-radius:8px;color:#f1f5f9;font-size:13px;outline:none;padding:0 8px;font-weight:700">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:4px">FIM</div>
+            <input type="time" id="det-hora-fim" value="${esc(os.hora_fim||'')}" style="width:100%;height:34px;background:#101115;border:1px solid #1f2130;border-radius:8px;color:#f1f5f9;font-size:13px;outline:none;padding:0 8px;font-weight:700">
+          </div>
+          <div>
+            <div style="font-size:10px;color:#475569;font-weight:600;margin-bottom:4px">TOTAL</div>
+            <div id="det-hora-total" style="height:34px;background:#101115;border:1px solid #1f2130;border-radius:8px;color:${C.green};font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center">${calcHoras(os.hora_inicio,os.hora_fim)}</div>
+          </div>
+        </div>
+        <button onclick="salvarHoras('${os.id}')" style="width:100%;height:32px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:8px;color:${C.blue};font-size:12px;font-weight:700;cursor:pointer">Salvar horas</button>
+      </div>
+    </div>
+
+    <!-- Peças utilizadas -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">🔧 Peças Utilizadas</div>
+      <div id="det-pecas-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+        ${(os.pecas||[]).map((p,i)=>{const item=estoque.find(e=>e.id===p.item_id);return `
+          <div style="display:flex;align-items:center;gap:8px;background:#08090b;border-radius:8px;padding:8px 12px">
+            <div style="flex:1"><div style="font-size:12px;font-weight:700;color:#f1f5f9">${esc(item?.nome||p.nome||'—')}</div><div style="font-size:11px;color:#475569">${p.qtd} ${esc(item?.unidade||'un')}</div></div>
+            <span style="font-size:11px;color:#94a3b8">${esc(p.qtd)} un</span>
+          </div>`}).join('')}
+      </div>
+      <div style="display:flex;gap:6px">
+        <div style="flex:1;position:relative">
+          <select id="det-peca-sel" style="width:100%;height:36px;background:#08090b;border:1px solid #1f2130;border-radius:8px;color:#f1f5f9;font-size:12px;outline:none;padding:0 8px;appearance:none;cursor:pointer">
+            <option value="">Selecionar item do estoque...</option>
+            ${estoque.map(e=>`<option value="${e.id}">${esc(e.nome)} (${e.quantidade} ${esc(e.unidade)})</option>`).join('')}
+          </select>
+        </div>
+        <input type="number" min="1" id="det-peca-qtd" value="1" style="width:60px;height:36px;background:#08090b;border:1px solid #1f2130;border-radius:8px;color:#f1f5f9;font-size:13px;outline:none;padding:0 8px;font-weight:700">
+        <button onclick="adicionarPeca('${os.id}')" style="height:36px;padding:0 12px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:8px;color:${C.blue};font-size:13px;font-weight:700;cursor:pointer">+ Usar</button>
+      </div>
+    </div>
+
+    <!-- Evidências -->
+    <div style="margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">📷 Evidências Fotográficas</div>
+      <div id="os-imgs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        ${(os.imagens||[]).map(img=>`<img src="${img}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #1f2130" alt="">`).join('')}
+      </div>
+      <input type="file" accept="image/*" id="os-img-input" style="display:none">
+      <button onclick="document.getElementById('os-img-input').click()" style="width:100%;height:36px;background:#08090b;border:2px dashed #1f2130;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        ${ICONS.camera} Anexar Foto
+      </button>
+    </div>
+  </div>`;
+
+  const sh = openSheet(html, os.numero);
+
+  // Hours auto-calc
+  const hIni = sh.overlay.querySelector('#det-hora-ini');
+  const hFim = sh.overlay.querySelector('#det-hora-fim');
+  const hTot = sh.overlay.querySelector('#det-hora-total');
+  [hIni, hFim].forEach(inp=>inp?.addEventListener('change',()=>{
+    if(hTot) hTot.textContent = calcHoras(hIni?.value, hFim?.value);
+  }));
+
+  // Photo upload
+  sh.overlay.querySelector('#os-img-input')?.addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=async ev=>{
+      await DB.uploadImg(os.id, ev.target.result);
+      showToast("Foto anexada! ✓");
+      const imgs=sh.overlay.querySelector('#os-imgs');
+      if(imgs){ const img=document.createElement('img');img.src=ev.target.result;img.style.cssText='width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #1f2130';imgs.appendChild(img); }
+      await reloadOS();
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function calcHoras(ini, fim){
+  if(!ini||!fim) return '—';
+  const [ih,im]=ini.split(':').map(Number);
+  const [fh,fm]=fim.split(':').map(Number);
+  let mins=(fh*60+fm)-(ih*60+im);
+  if(mins<0) mins+=1440;
+  const h=Math.floor(mins/60), m=mins%60;
+  return `${h}h${m>0?m+'m':''}`;
+}
+
+async function salvarHoras(osId){
+  const ini = document.getElementById('det-hora-ini')?.value||'';
+  const fim = document.getElementById('det-hora-fim')?.value||'';
+  await DB.updateOrdem(osId,{hora_inicio:ini, hora_fim:fim});
+  showToast('Horas salvas! ✓');
+  await reloadOS();
+}
+
+async function osToggleCheck(osId, idx){
+  const os = osState.ordens.find(o=>o.id===osId);
+  if(!os) return;
+  const chk = [...(os.checklist||[])];
+  if(chk[idx]) chk[idx]={...chk[idx],feito:!chk[idx].feito};
+  await DB.updateOrdem(osId,{checklist:chk});
+  // Update UI inline
+  const btn = document.querySelectorAll('#chklist-wrap button')[idx];
+  if(btn){
+    btn.style.borderColor = chk[idx].feito ? C.green : '#334155';
+    btn.style.background = chk[idx].feito ? C.green+'22' : 'transparent';
+    btn.innerHTML = chk[idx].feito ? ICONS.check.replace('width="10"','width="12"').replace('stroke="currentColor"','stroke="'+C.green+'"') : '';
+    const span = btn.nextElementSibling;
+    if(span){
+      span.style.color = chk[idx].feito ? '#475569' : '#f1f5f9';
+      span.style.textDecoration = chk[idx].feito ? 'line-through' : 'none';
+    }
+  }
+  osState.ordens = osState.ordens.map(o=>o.id===osId?{...o,checklist:chk}:o);
+  // Update progress counter
+  const done = chk.filter(c=>c.feito).length;
+  const prog = document.querySelector('#chklist-wrap')?.previousElementSibling?.querySelector('div:last-child');
+  if(prog) prog.textContent = `${done}/${chk.length} concluídos`;
+}
+
+async function adicionarPeca(osId){
+  const sel = document.getElementById('det-peca-sel');
+  const qtdEl = document.getElementById('det-peca-qtd');
+  const itemId = sel?.value;
+  const qtd = parseInt(qtdEl?.value)||1;
+  if(!itemId){ showToast('Selecione um item','error'); return; }
+  const estoque = LS.get('estoque');
+  const item = estoque.find(e=>e.id===itemId);
+  if(!item){ showToast('Item não encontrado','error'); return; }
+  if(item.quantidade < qtd){ showToast(`Estoque insuficiente (${item.quantidade} ${item.unidade})`, 'error'); return; }
+  // Descontar do estoque
+  const novaQtd = item.quantidade - qtd;
+  await DB.updateItem(itemId, {quantidade: novaQtd});
+  if(novaQtd <= item.minimo){
+    addBellNotification(`⚠ Estoque baixo: ${item.nome} — ${novaQtd} ${item.unidade} (mín. ${item.minimo})`);
+  }
+  // Registrar na OS
+  const os = osState.ordens.find(o=>o.id===osId);
+  const pecas = [...(os?.pecas||[]), {item_id:itemId, nome:item.nome, qtd, unidade:item.unidade}];
+  await DB.updateOrdem(osId, {pecas});
+  showToast(`${item.nome} — ${qtd} ${item.unidade} descontado do estoque ✓`);
+  // Refresh list inline
+  const lista = document.getElementById('det-pecas-list');
+  if(lista){
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;gap:8px;background:#08090b;border-radius:8px;padding:8px 12px';
+    div.innerHTML=`<div style="flex:1"><div style="font-size:12px;font-weight:700;color:#f1f5f9">${esc(item.nome)}</div><div style="font-size:11px;color:#475569">${qtd} ${esc(item.unidade)}</div></div>`;
+    lista.appendChild(div);
+  }
+  // Update option text
+  const opt = sel?.querySelector(`option[value="${itemId}"]`);
+  if(opt) opt.textContent = `${item.nome} (${novaQtd} ${item.unidade})`;
+  if(qtdEl) qtdEl.value='1';
+  await reloadOS();
+  await reloadEstoque();
+}
+
+function osQRById(id){
+  const os = osState.ordens.find(o=>o.id===id);
+  if(os) osQR(id);
+}
+
+function osQR(id){
+  const os = osState.ordens.find(o=>o.id===id);
+  if(!os) return;
+  const qrText = `VEXOR|${os.numero}|${os.status}|${os.titulo.slice(0,40)}`;
+  const url = window.location.href.split('#')[0] + '#os=' + encodeOS(os, osState.usuarios);
+  let copied = false;
+  const html = `<div style="display:flex;flex-direction:column;gap:18px">
+    <div style="background:#08090b;border-radius:10px;padding:12px 14px">
+      <div style="font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:6px">${esc(os.titulo)}</div>
+      <div style="display:flex;gap:8px">${badgeHTML(os.prioridade)}${badgeHTML(os.status)}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">Aponte a câmera para abrir a OS</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;border:1px solid #1f2130">${renderQR(qrText,200)}</div>
+      <div style="font-size:11px;color:#475569">Abre sem precisar de login ✓</div>
+    </div>
+    <div style="background:#08090b;border-radius:10px;padding:10px 12px;font-size:11px;color:#475569;font-family:monospace;word-break:break-all;line-height:1.6">
+      <div style="color:#94a3b8;font-weight:600;margin-bottom:4px">Dados no QR:</div>${esc(qrText)}
+    </div>
+    <div style="display:flex;gap:10px">
+      <button id="qr-copy-btn" style="flex:1;height:38px;background:#08090b;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s">
+        ${ICONS.copy} Copiar link
+      </button>
+      <button id="qr-share-btn" style="flex:1;height:38px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        ${ICONS.share} Compartilhar
+      </button>
+    </div>
+  </div>`;
+  const sh = openSheet(html, `QR Code — ${os.numero}`);
+  const copyBtn = sh.overlay.querySelector('#qr-copy-btn');
+  copyBtn?.addEventListener('click', ()=>{
+    navigator.clipboard?.writeText(url).catch(()=>{
+      const el=document.createElement('textarea');el.value=url;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);
+    });
+    copyBtn.innerHTML = `${ICONS.copyDone} Copiado!`;
+    copyBtn.style.background = C.greenDim;
+    copyBtn.style.borderColor = C.green + '44';
+    copyBtn.style.color = C.green;
+    setTimeout(()=>{
+      copyBtn.innerHTML = `${ICONS.copy} Copiar link`;
+      copyBtn.style.background='#08090b';copyBtn.style.borderColor='#1f2130';copyBtn.style.color='#94a3b8';
+    }, 2200);
+  });
+  sh.overlay.querySelector('#qr-share-btn')?.addEventListener('click', ()=>{
+    if(navigator.share){ navigator.share({title:`OS ${os.numero}`,text:os.titulo,url}).catch(()=>{}); }
+    else copyBtn?.click();
+  });
+}
+
+function encodeOS(os, usuarios){
+  const eq=(os.equipe_ids||[]).map(id=>{
+    const u=usuarios.find(u=>u.id===id);
+    return u?{nome:u.nome,cargo:u.cargo||u.role}:null;
+  }).filter(Boolean);
+  const p={n:os.numero,t:os.titulo,d:os.descricao||"",p:os.prioridade,s:os.status,e:eq,c:os.created_at,u:os.updated_at};
+  return btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+}
+
+async function osUpdateStatus(id, status){
+  await DB.updateOrdem(id, {status});
+  showToast(`Status: ${status} ✓`);
+  await reloadOS();
+}
+
+async function reloadOS(){
+  const [ordens, usuarios] = await Promise.all([DB.getOrdens(), DB.getUsuarios()]);
+  osState.ordens = ordens;
+  osState.usuarios = usuarios;
+  const container = document.getElementById('page-content');
+  if(container && appPage==='os') renderOSList(container, ['admin','gestor'].includes(appUser.role), appUser.role==='admin');
+}
+
+function renderOSForm(init){
+  const f = {
+    titulo: init?.titulo||'',
+    descricao: init?.descricao||'',
+    prioridade: init?.prioridade||'Alta',
+    status: init?.status||'Planejada',
+    tipo: init?.tipo||'Corretiva',
+    localizacao: init?.localizacao||'',
+    data_execucao: init?.data_execucao||'',
+    prazo_final: init?.prazo_final||'',
+    terceiros: init?.terceiros||'',
+    equipe_ids: init?.equipe_ids||[],
+    checklist: init?.checklist||[],
+  };
+  const ativos = osState.usuarios.filter(u=>u.ativo!==false);
+  const tipoColors = {Preventiva:C.blue, Corretiva:C.red, Preditiva:C.purple, Melhoria:C.green};
+
+  return `<div style="width:100%;box-sizing:border-box">
+
+    <!-- Seção: Informações básicas -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1f2130">📋 Informações Básicas</div>
+    ${fieldHTML('Título *','osf-titulo',f.titulo,'text','Ex: Manutenção preventiva - Prensa 02',true)}
+    ${fieldHTML('Descrição','osf-desc',f.descricao,'text','Detalhes da atividade...',false,2)}
+
+    <!-- Tipo de manutenção -->
+    <div class="field-wrap">
+      <div class="field-label">Tipo de Manutenção</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="osf-tipo-grid">
+        ${TIPO_MANUT.map(t=>{
+          const sel=f.tipo===t;
+          const col=tipoColors[t]||C.blue;
+          return `<button type="button" onclick="osTipoSelect('${t}')" data-tipo="${t}" style="height:36px;border-radius:8px;background:${sel?col+'22':'transparent'};border:1.5px solid ${sel?col:'#1f2130'};color:${sel?col:'#94a3b8'};font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s">${t}</button>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${selHTML('Prioridade','osf-prio',f.prioridade,PRIOS.map(p=>({v:p,l:p})))}
+      ${selHTML('Status','osf-status',f.status,STATUS_OS.map(s=>({v:s,l:s})))}
+    </div>
+
+    <!-- Seção: Datas -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">📅 Datas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${fieldHTML('Data de Execução','osf-exec',f.data_execucao,'date','')}
+      ${fieldHTML('Prazo Final','osf-prazo',f.prazo_final,'date','')}
+    </div>
+
+    <!-- Seção: Localização -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">📍 Localização</div>
+    ${fieldHTML('Local / Setor','osf-loc',f.localizacao,'text','Ex: Linha B - Pressa 02 - Galpão 3')}
+
+    <!-- Seção: Terceiros -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">🤝 Terceiros</div>
+    ${fieldHTML('Empresa / Prestador','osf-terc',f.terceiros,'text','Ex: Empresa ABC Ltda — João (47) 99999-0000')}
+
+    <!-- Seção: Checklist -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">☑ Checklist</div>
+    <div id="osf-checklist" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+      ${(f.checklist||[]).map((item,i)=>`
+        <div style="display:flex;align-items:center;gap:8px" id="chk-row-${i}">
+          <input class="field-input" style="flex:1;height:36px" value="${esc(item.texto)}" placeholder="Item do checklist" id="chk-${i}">
+          <button type="button" onclick="removeChecklistItem(${i})" style="width:32px;height:32px;border-radius:8px;border:1px solid #1f2130;background:transparent;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.x.replace('width="20"','width="14"').replace('height="20"','height="14"')}</button>
+        </div>`).join('')}
+    </div>
+    <button type="button" onclick="addChecklistItem()" style="width:100%;height:34px;background:#08090b;border:1.5px dashed #1f2130;border-radius:8px;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px">
+      ${ICONS.plus} Adicionar item
+    </button>
+
+    <!-- Seção: Equipe -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">👷 Equipe</div>
+    <div class="field-wrap">
+      <div class="field-label" id="osf-team-label">Equipe (${f.equipe_ids.length} selecionado${f.equipe_ids.length!==1?'s':''}) — toque para adicionar</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px" id="osf-team-grid">
+        ${ativos.map(u=>{
+          const sel=f.equipe_ids.includes(u.id);
+          const col=R_COLOR[u.role]||C.blue;
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+            <button type="button" onclick="osToggleTeam('${u.id}')" data-uid="${u.id}" title="${esc(u.nome)}" style="width:38px;height:38px;border-radius:13px;background:${sel?col+'33':'#08090b'};border:2px solid ${sel?col:'#1f2130'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${sel?col:C.muted};cursor:pointer;position:relative;transition:all 0.15s">
+              ${u.avatar?`<img src="${u.avatar}" style="width:100%;height:100%;border-radius:inherit;object-fit:cover" alt="">`:esc(u.nome.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase())}
+              ${sel?`<div style="position:absolute;bottom:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center">${ICONS.check}</div>`:''}
+            </button>
+            <span style="font-size:10px;color:${sel?'#f1f5f9':'#475569'};font-weight:600;max-width:52px;text-align:center;line-height:1.2">${esc(u.nome.split(" ")[0])}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1;height:38px;border-radius:10px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:38px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px" id="osf-save-btn" onclick="saveOSForm()">${ICONS.save} Salvar</button>
+    </div>
+  </div>`;
+}
+
+let _osFormEquipe = [];
+let _osFormSaveCallback = null;
+let _osFormTipo = 'Corretiva';
+let _osChecklistCount = 0;
+
+function setupOSForm(overlay, init, onSave){
+  _osFormEquipe = [...(init?.equipe_ids||[])];
+  _osFormTipo = init?.tipo||'Corretiva';
+  _osChecklistCount = (init?.checklist||[]).length;
+  _osFormSaveCallback = onSave;
+  updateOSTeamLabel();
+}
+
+function osTipoSelect(tipo){
+  _osFormTipo = tipo;
+  const tipoColors = {Preventiva:C.blue, Corretiva:C.red, Preditiva:C.purple, Melhoria:C.green};
+  document.querySelectorAll('[data-tipo]').forEach(btn=>{
+    const t = btn.getAttribute('data-tipo');
+    const sel = t===tipo;
+    const col = tipoColors[t]||C.blue;
+    btn.style.background = sel ? col+'22' : 'transparent';
+    btn.style.borderColor = sel ? col : '#1f2130';
+    btn.style.color = sel ? col : '#94a3b8';
+  });
+}
+
+function addChecklistItem(){
+  const list = document.getElementById('osf-checklist');
+  if(!list) return;
+  const i = _osChecklistCount++;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:8px';
+  row.id = `chk-row-${i}`;
+  row.innerHTML = `
+    <input class="field-input" style="flex:1;height:36px" placeholder="Item do checklist" id="chk-${i}">
+    <button type="button" onclick="removeChecklistItem(${i})" style="width:32px;height:32px;border-radius:8px;border:1px solid #1f2130;background:transparent;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.x.replace('width="20"','width="14"').replace('height="20"','height="14"')}</button>`;
+  list.appendChild(row);
+  document.getElementById(`chk-${i}`)?.focus();
+}
+
+function removeChecklistItem(i){
+  document.getElementById(`chk-row-${i}`)?.remove();
+}
+
+function osToggleTeam(uid){
+  const idx = _osFormEquipe.indexOf(uid);
+  if(idx>=0) _osFormEquipe.splice(idx,1);
+  else _osFormEquipe.push(uid);
+  const ativos = osState.usuarios.filter(u=>u.ativo!==false);
+  document.querySelectorAll('[data-uid]').forEach(btn=>{
+    const id = btn.getAttribute('data-uid');
+    const sel = _osFormEquipe.includes(id);
+    const u = ativos.find(x=>x.id===id);
+    const col = R_COLOR[u?.role]||C.blue;
+    btn.style.background = sel ? col+'33' : '#08090b';
+    btn.style.borderColor = sel ? col : '#1f2130';
+    btn.style.color = sel ? col : C.muted;
+    const checkEl = btn.querySelector('div[style*="border-radius:50%"]');
+    if(sel && !checkEl){
+      const d=document.createElement('div');
+      d.style.cssText=`position:absolute;bottom:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center`;
+      d.innerHTML=ICONS.check; btn.appendChild(d);
+    } else if(!sel && checkEl){ checkEl.remove(); }
+    const label = btn.parentElement?.querySelector('span');
+    if(label) label.style.color = sel ? '#f1f5f9' : '#475569';
+  });
+  updateOSTeamLabel();
+}
+
+function updateOSTeamLabel(){
+  const lbl = document.getElementById('osf-team-label');
+  if(lbl) lbl.textContent = `Equipe (${_osFormEquipe.length} selecionado${_osFormEquipe.length!==1?'s':''}) — toque para adicionar`;
+}
+
+function saveOSForm(){
+  const titulo = document.getElementById('osf-titulo')?.value?.trim()||'';
+  if(titulo.length<=2){ showToast('Título muito curto','error'); return; }
+  // Collect checklist items
+  const checklist = [];
+  document.querySelectorAll('[id^="chk-"]').forEach(inp=>{
+    if(inp.tagName==='INPUT'){
+      const txt = inp.value.trim();
+      if(txt) checklist.push({texto:txt, feito:false});
+    }
+  });
+  const form = {
+    titulo,
+    descricao: document.getElementById('osf-desc')?.value||'',
+    prioridade: document.getElementById('osf-prio')?.value||'Alta',
+    status: document.getElementById('osf-status')?.value||'Planejada',
+    tipo: _osFormTipo,
+    localizacao: document.getElementById('osf-loc')?.value||'',
+    data_execucao: document.getElementById('osf-exec')?.value||'',
+    prazo_final: document.getElementById('osf-prazo')?.value||'',
+    terceiros: document.getElementById('osf-terc')?.value||'',
+    equipe_ids: [..._osFormEquipe],
+    checklist,
+  };
+  if(_osFormSaveCallback){ _osFormSaveCallback(form); }
+}
+
+function closeTopSheet(){
+  const sheets = document.querySelectorAll('.sheet-overlay');
+  if(sheets.length) sheets[sheets.length-1].remove();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ESTOQUE
+// ════════════════════════════════════════════════════════════════
+let estoqueState = { items:[], busca:'', filtroCat:'Todas' };
+
+async function renderEstoquePage(container){
+  const items = await DB.getEstoque();
+  estoqueState.items = items;
+  estoqueState.busca = '';
+  estoqueState.filtroCat = 'Todas';
+  renderEstoqueList(container);
+}
+
+function renderEstoqueList(container){
+  const {items, busca, filtroCat} = estoqueState;
+  const canEdit = ['admin','gestor'].includes(appUser.role);
+  const canDel = appUser.role==='admin';
+  const cats = getCats();
+  const filtered = items.filter(i=>{
+    const mB=!busca||i.nome.toLowerCase().includes(busca.toLowerCase())||(i.categoria||"").toLowerCase().includes(busca.toLowerCase());
+    const mC=filtroCat==='Todas'||i.categoria===filtroCat;
+    return mB&&mC;
+  });
+  const criticos = items.filter(i=>i.quantidade<=i.minimo).length;
+
+  container.innerHTML = `<div style="padding-bottom:20px;animation:fadeIn 0.25s ease">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px">
+      <div>
+        <div style="font-size:20px;font-weight:800;color:#f1f5f9">Estoque</div>
+        ${criticos>0?`<div style="font-size:12px;color:${C.red};margin-top:2px">⚠ ${criticos} item(ns) abaixo do mínimo</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px">
+        ${canEdit?`<button onclick="openCatManager()" style="height:36px;padding:0 12px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">🗂 Categorias</button>`:''}
+        ${canEdit?`<button class="btn btn-primary" onclick="estoqueCreate()">${ICONS.plus} Novo</button>`:''}
+      </div>
+    </div>
+    <!-- Summary -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 20px 14px">
+      ${[{l:"Total",v:items.length,c:C.blue},{l:"Críticos",v:criticos,c:C.red},{l:"OK",v:items.length-criticos,c:C.green}].map(k=>`
+        <div class="card" style="padding:12px 14px">
+          <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">${k.l}</div>
+          <div style="font-size:26px;font-weight:900;color:${k.c}">${k.v}</div>
+        </div>`).join('')}
+    </div>
+    <div class="search-wrap">
+      <div class="search-icon">${ICONS.search}</div>
+      <input class="search-input" id="est-search" placeholder="Buscar item ou categoria..." value="${esc(busca)}">
+    </div>
+    <!-- Category filter tabs -->
+    <div class="tab-scroll">
+      ${['Todas',...cats].map(c=>{
+        const cnt = c==='Todas'?items.length:items.filter(i=>i.categoria===c).length;
+        const act = filtroCat===c;
+        const col = c==='Todas'?C.blue:catColor(c);
+        return `<button class="tab-btn ${act?'active':''}" style="${act?`border-color:${col};background:${col}22;color:${col}`:''}" onclick="estoqueFilterCat('${esc(c)}')">
+          ${c==='Todas'?'':'<span style="width:7px;height:7px;border-radius:50%;background:'+col+';display:inline-block;margin-right:4px"></span>'}${esc(c)} (${cnt})
+        </button>`;
+      }).join('')}
+    </div>
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+      ${filtered.length===0 ? emptyHTML('Nenhum item','Adicione o primeiro item ao estoque') :
+        filtered.map(item=>{
+          const crit=item.quantidade<=item.minimo;
+          return `<div class="card" style="overflow:hidden;${crit?'border-color:'+C.red+'55':''}">
+            ${crit?`<div style="height:3px;background:${C.red}"></div>`:''}
+            <div style="padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <div>
+                  <div style="font-size:14px;font-weight:800;color:#f1f5f9">${esc(item.nome)}</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:2px;display:flex;align-items:center;gap:5px">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${catColor(item.categoria||'')};flex-shrink:0;display:inline-block"></span>
+                  ${esc(item.categoria)} · 📍 ${esc(item.localizacao||'—')}
+                </div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:24px;font-weight:900;color:${crit?C.red:C.green};line-height:1">${item.quantidade}</div>
+                  <div style="font-size:11px;color:#94a3b8">${esc(item.unidade)}</div>
+                </div>
+              </div>
+              ${crit?`<div style="background:${C.redDim};border:1px solid ${C.red}33;border-radius:8px;padding:6px 10px;font-size:11px;color:${C.red};font-weight:600;margin-bottom:10px">⚠ Abaixo do mínimo (${item.minimo} ${esc(item.unidade)})</div>`:''}
+              <div style="display:flex;gap:8px">
+                <button onclick="estoqueAdjust('${item.id}',-1)" style="width:38px;height:38px;background:${C.redDim};border:1px solid ${C.red}33;border-radius:10px;color:${C.red};font-size:18px;font-weight:900;cursor:pointer;flex-shrink:0">−</button>
+                <button onclick="estoqueAdjust('${item.id}',1)" style="flex:1;height:38px;background:${C.greenDim};border:1px solid ${C.green}33;border-radius:10px;color:${C.green};font-size:14px;font-weight:700;cursor:pointer">+ Entrada</button>
+                ${canEdit?`<button onclick="estoqueEdit('${item.id}')" style="width:38px;height:38px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.pencil}</button>`:''}
+                ${canDel?`<button onclick="estoqueDelete('${item.id}')" style="width:38px;height:38px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.trash}</button>`:''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('est-search')?.addEventListener('input', e=>{
+    estoqueState.busca = e.target.value;
+    renderEstoqueList(container);
+  });
+}
+
+function estoqueFilterCat(cat){
+  estoqueState.filtroCat = cat;
+  const container = document.getElementById('page-content');
+  if(container) renderEstoqueList(container);
+}
+
+function estoqueCreate(){
+  const html = renderItemForm(null);
+  const sh = openSheet(html, 'Novo Item de Estoque');
+  setupItemForm(sh.overlay, null, async(form)=>{
+    sh.close();
+    try{ await DB.createItem(form); showToast("Item adicionado! ✓"); await reloadEstoque(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+function estoqueEdit(id){
+  const item = estoqueState.items.find(i=>i.id===id);
+  if(!item) return;
+  const html = renderItemForm(item);
+  const sh = openSheet(html, `Editar: ${item.nome}`);
+  setupItemForm(sh.overlay, item, async(form)=>{
+    sh.close();
+    try{ await DB.updateItem(id, form); showToast("Item atualizado! ✓"); await reloadEstoque(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+async function estoqueDelete(id){
+  const item = estoqueState.items.find(i=>i.id===id);
+  openConfirm(item?.nome||'item', async()=>{
+    try{ await DB.deleteItem(id); showToast("Item excluído.","warning"); await reloadEstoque(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+async function estoqueAdjust(id, delta){
+  const item = estoqueState.items.find(i=>i.id===id);
+  if(!item) return;
+  const nova = Math.max(0, item.quantidade + delta);
+  await DB.updateItem(id, {quantidade:nova});
+  showToast(`${delta>0?'+':''}${delta} ${item.unidade}`);
+  // Bell notification if dropped to/below minimum
+  if(delta < 0 && nova <= item.minimo){
+    addBellNotification(`⚠ Estoque baixo: ${item.nome} — ${nova} ${item.unidade} (mín. ${item.minimo})`);
+  }
+  await reloadEstoque();
+}
+
+async function reloadEstoque(){
+  estoqueState.items = await DB.getEstoque();
+  const container = document.getElementById('page-content');
+  if(container && appPage==='estoque') renderEstoqueList(container);
+}
+
+function renderItemForm(init){
+  const cats = getCats();
+  const f = {
+    nome: init?.nome||'', categoria: init?.categoria||cats[0]||'',
+    localizacao: init?.localizacao||'', quantidade: init?.quantidade??0,
+    unidade: init?.unidade||'un', minimo: init?.minimo??5,
+  };
+  return `<div style="width:100%;box-sizing:border-box">
+    ${fieldHTML('Nome do Item *','itf-nome',f.nome,'text','Ex: Rolamento 6205',true)}
+
+    <!-- Categoria dinâmica -->
+    <div class="field-wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="field-label" style="margin-bottom:0">Categoria</div>
+        <button type="button" onclick="openCatManager()" style="background:none;border:none;color:${C.blue};font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:3px">
+          ${ICONS.plus.replace('width="18"','width="13"').replace('height="18"','height="13"')} Gerenciar
+        </button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <select id="itf-cat" class="field-select" style="flex:1">
+          ${cats.map(c=>`<option value="${esc(c)}" ${f.categoria===c?'selected':''}>${esc(c)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    ${fieldHTML('Localização','itf-loc',f.localizacao,'text','Ex: A1-Prat.03')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${fieldHTML('Quantidade','itf-qtd',String(f.quantidade),'number','0')}
+      ${selHTML('Unidade','itf-un',f.unidade,['un','kg','L','m','g','cx'].map(u=>({v:u,l:u})))}
+    </div>
+    ${fieldHTML('Qtd. Mínima (alerta)','itf-min',String(f.minimo),'number','5')}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1;height:38px;border-radius:10px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:38px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px" id="itf-save-btn">${ICONS.save} Salvar</button>
+    </div>
+  </div>`;
+}
+
+let _itemSaveCallback = null;
+function setupItemForm(overlay, init, onSave){
+  _itemSaveCallback = onSave;
+  overlay.querySelector('#itf-save-btn')?.addEventListener('click', ()=>{
+    const nome = document.getElementById('itf-nome')?.value?.trim()||'';
+    if(nome.length<2){ showToast('Nome muito curto','error'); return; }
+    const form = {
+      nome,
+      categoria: document.getElementById('itf-cat')?.value||getCats()[0]||'',
+      localizacao: document.getElementById('itf-loc')?.value||'',
+      quantidade: Number(document.getElementById('itf-qtd')?.value)||0,
+      unidade: document.getElementById('itf-un')?.value||'un',
+      minimo: Number(document.getElementById('itf-min')?.value)||5,
+    };
+    if(_itemSaveCallback) _itemSaveCallback(form);
+  });
+}
+
+// ── GERENCIADOR DE CATEGORIAS ──
+function openCatManager(){
+  function renderCatList(){
+    const cats = getCats();
+    const wrap = document.getElementById('cat-list');
+    if(!wrap) return;
+    wrap.innerHTML = cats.length===0
+      ? `<div style="text-align:center;padding:12px 0;font-size:12px;color:#475569">Nenhuma categoria. Crie a primeira!</div>`
+      : `<div style="background:#08090b;border-radius:12px;overflow:hidden">
+          ${cats.map((c,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;${i<cats.length-1?'border-bottom:1px solid #1f2130':''}">
+              <div style="width:8px;height:8px;border-radius:50%;background:${catColor(c)};flex-shrink:0"></div>
+              <span style="flex:1;font-size:13px;font-weight:700;color:#f1f5f9">${esc(c)}</span>
+              <span style="font-size:11px;color:#475569;margin-right:6px">${estoqueState.items.filter(it=>it.categoria===c).length} itens</span>
+              <button onclick="catRename('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Renomear">
+                ${ICONS.pencil.replace('width="15"','width="12"').replace('height="15"','height="12"')}
+              </button>
+              <button onclick="catDelete('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center" title="Excluir">
+                ${ICONS.x.replace('width="20"','width="12"').replace('height="20"','height="12"')}
+              </button>
+            </div>`).join('')}
+        </div>`;
+  }
+
+  const html = `<div>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:14px">Crie e gerencie as categorias do seu estoque. As categorias são usadas para organizar os itens.</div>
+
+    <!-- Add nova -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="cat-new-input" class="field-input" style="flex:1" placeholder="Nova categoria (ex: Hidráulico)">
+      <button onclick="catAdd()" style="height:44px;padding:0 16px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:8px;color:${C.blue};font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">Criar</button>
+    </div>
+
+    <!-- Lista -->
+    <div id="cat-list"></div>
+
+    <!-- Restaurar padrão -->
+    <button onclick="catRestoreDefaults()" style="width:100%;height:36px;margin-top:12px;background:transparent;border:1.5px dashed #1f2130;border-radius:10px;color:#475569;font-size:12px;font-weight:700;cursor:pointer">
+      ↺ Restaurar categorias padrão
+    </button>
+  </div>`;
+
+  openSheet(html, '🗂 Categorias do Estoque');
+  renderCatList();
+
+  // Enter key on input
+  setTimeout(()=>{
+    document.getElementById('cat-new-input')?.addEventListener('keydown', e=>{
+      if(e.key==='Enter') catAdd();
+    });
+  }, 80);
+}
+
+function catColor(name){
+  // Deterministic color from name
+  const cols = [C.blue,C.green,C.orange,C.purple,C.yellow,C.red,'#06b6d4','#ec4899'];
+  let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))%cols.length;
+  return cols[h];
+}
+
+function catAdd(){
+  const inp = document.getElementById('cat-new-input');
+  const nome = inp?.value?.trim()||'';
+  if(nome.length<2){ showToast('Nome muito curto','error'); return; }
+  const cats = getCats();
+  if(cats.find(c=>c.toLowerCase()===nome.toLowerCase())){ showToast('Categoria já existe','error'); return; }
+  saveCats([...cats, nome]);
+  showToast(`"${nome}" criada! ✓`);
+  if(inp) inp.value='';
+  // Refresh list
+  const wrap=document.getElementById('cat-list');
+  if(wrap){
+    // Re-render inline
+    const cats2=getCats();
+    wrap.innerHTML=`<div style="background:#08090b;border-radius:12px;overflow:hidden">
+      ${cats2.map((c,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;${i<cats2.length-1?'border-bottom:1px solid #1f2130':''}">
+          <div style="width:8px;height:8px;border-radius:50%;background:${catColor(c)};flex-shrink:0"></div>
+          <span style="flex:1;font-size:13px;font-weight:700;color:#f1f5f9">${esc(c)}</span>
+          <span style="font-size:11px;color:#475569;margin-right:6px">${estoqueState.items.filter(it=>it.categoria===c).length} itens</span>
+          <button onclick="catRename('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+            ${ICONS.pencil.replace('width="15"','width="12"').replace('height="15"','height="12"')}
+          </button>
+          <button onclick="catDelete('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center">
+            ${ICONS.x.replace('width="20"','width="12"').replace('height="20"','height="12"')}
+          </button>
+        </div>`).join('')}
+    </div>`;
+  }
+}
+
+function catDelete(nome){
+  const em_uso = estoqueState.items.filter(it=>it.categoria===nome).length;
+  if(em_uso>0){
+    showToast(`"${nome}" está em uso (${em_uso} itens)`, 'error');
+    return;
+  }
+  const cats = getCats().filter(c=>c!==nome);
+  saveCats(cats);
+  showToast(`"${nome}" excluída.`, 'warning');
+  // Refresh
+  const wrap=document.getElementById('cat-list');
+  if(wrap){
+    if(cats.length===0){
+      wrap.innerHTML=`<div style="text-align:center;padding:12px 0;font-size:12px;color:#475569">Nenhuma categoria. Crie a primeira!</div>`;
+    } else {
+      wrap.innerHTML=`<div style="background:#08090b;border-radius:12px;overflow:hidden">
+        ${cats.map((c,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;${i<cats.length-1?'border-bottom:1px solid #1f2130':''}">
+            <div style="width:8px;height:8px;border-radius:50%;background:${catColor(c)};flex-shrink:0"></div>
+            <span style="flex:1;font-size:13px;font-weight:700;color:#f1f5f9">${esc(c)}</span>
+            <span style="font-size:11px;color:#475569;margin-right:6px">${estoqueState.items.filter(it=>it.categoria===c).length} itens</span>
+            <button onclick="catRename('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+              ${ICONS.pencil.replace('width="15"','width="12"').replace('height="15"','height="12"')}
+            </button>
+            <button onclick="catDelete('${esc(c)}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:7px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center">
+              ${ICONS.x.replace('width="20"','width="12"').replace('height="20"','height="12"')}
+            </button>
+          </div>`).join('')}
+      </div>`;
+    }
+  }
+}
+
+function catRename(nome){
+  const sh = openSheet(`<div>
+    <div style="font-size:13px;color:#94a3b8;margin-bottom:14px">Renomear a categoria <strong style="color:#f1f5f9">"${esc(nome)}"</strong>. Todos os itens com essa categoria serão atualizados.</div>
+    ${fieldHTML('Novo nome','cat-rename-input',nome,'text','',true)}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1;height:38px;border-radius:10px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:38px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer" id="cat-rename-btn">Renomear</button>
+    </div>
+  </div>`, 'Renomear categoria');
+
+  setTimeout(()=>{
+    const inp = document.getElementById('cat-rename-input');
+    if(inp){ inp.focus(); inp.select(); }
+    sh.overlay.querySelector('#cat-rename-btn')?.addEventListener('click', async ()=>{
+      const novo = document.getElementById('cat-rename-input')?.value?.trim()||'';
+      if(novo.length<2){ showToast('Nome muito curto','error'); return; }
+      if(novo===nome){ closeTopSheet(); return; }
+      // Update cats list
+      const cats = getCats().map(c=>c===nome?novo:c);
+      saveCats(cats);
+      // Update all estoque items with this category
+      const estoque = LS.get('estoque');
+      estoque.forEach(item=>{ if(item.categoria===nome) item.categoria=novo; });
+      LS.set('estoque', estoque);
+      await reloadEstoque();
+      showToast(`Renomeada para "${novo}" ✓`);
+      closeTopSheet(); // close rename sheet
+      closeTopSheet(); // close cat manager
+      setTimeout(()=> openCatManager(), 50); // reopen refreshed
+    });
+  }, 80);
+}
+
+function catRestoreDefaults(){
+  saveCats([...CATS_DEFAULT]);
+  showToast('Categorias padrão restauradas ✓');
+  closeTopSheet();
+  setTimeout(()=> openCatManager(), 50);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  EQUIPE
+// ════════════════════════════════════════════════════════════════
+let equipeState = { lista:[], busca:'', filtroRole:'Todos' };
+
+async function renderEquipePage(container){
+  const lista = await DB.getUsuarios();
+  equipeState.lista = lista;
+  equipeState.busca = '';
+  equipeState.filtroRole = 'Todos';
+  renderEquipeList(container);
+}
+
+function renderEquipeList(container){
+  const {lista, busca, filtroRole} = equipeState;
+  const isAdmin = appUser.role==='admin';
+  const TABS = ["Todos","admin","gestor","tecnico"];
+  const filtered = lista.filter(f=>{
+    const mB=!busca||f.nome.toLowerCase().includes(busca.toLowerCase())||(f.cargo||"").toLowerCase().includes(busca.toLowerCase())||(f.matricula||"").toLowerCase().includes(busca.toLowerCase());
+    const mR=filtroRole==="Todos"||f.role===filtroRole;
+    return mB&&mR;
+  });
+
+  container.innerHTML = `<div style="padding-bottom:20px;animation:fadeIn 0.25s ease">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 16px">
+      <div>
+        <div style="font-size:20px;font-weight:800;color:#f1f5f9">Equipe</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:2px">
+          ${STATUS_FUNC.map(s=>`<span style="color:${s.c}">${lista.filter(f=>(f.status_func||'ativo')===s.v).length} ${s.l.toLowerCase()}</span>`).join(' · ')}
+        </div>
+      </div>
+      ${isAdmin?`<button class="btn btn-primary" onclick="equipeCreate()">${ICONS.plus} Cadastrar</button>`:''}
+    </div>
+    <div class="search-wrap">
+      <div class="search-icon">${ICONS.search}</div>
+      <input class="search-input" id="eq-search" placeholder="Buscar por nome, cargo ou matrícula..." value="${esc(busca)}">
+    </div>
+    <div class="tab-scroll">
+      ${TABS.map(t=>{
+        const col=R_COLOR[t]||C.blue;
+        const cnt=t==="Todos"?lista.length:lista.filter(f=>f.role===t).length;
+        const lbl=t==="Todos"?"Todos":ROLES_OPT.find(r=>r.v===t)?.l||t;
+        const act=filtroRole===t;
+        return `<button class="tab-btn ${act?'active':''}" style="${act?`border-color:${col};background:${col}22;color:${col}`:''};" onclick="equipeFilterRole('${t}')">${lbl} (${cnt})</button>`;
+      }).join('')}
+    </div>
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+      ${filtered.length===0 ? emptyHTML('Nenhum funcionário','Cadastre o primeiro membro da equipe') :
+        filtered.map(func=>{
+          const col=R_COLOR[func.role]||C.blue;
+          const roleIc = func.role==='admin' ? ICONS.shieldCheck : func.role==='gestor' ? ICONS.userCheck : ICONS.hardHat;
+          const sf = STATUS_FUNC.find(s=>s.v===(func.status_func||'ativo'))||STATUS_FUNC[0];
+          const epis = func.epis||[];
+          const mesAtual = new Date().toISOString().slice(0,7);
+          const epiMes = epis.filter(e=>e.data?.startsWith(mesAtual)).length;
+          const isInactive = func.status_func==='desligado'||func.status_func==='afastado';
+          return `<div class="card" style="overflow:hidden;opacity:${isInactive?0.7:1}">
+            <div style="height:3px;background:${sf.c}"></div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                ${avaHTML(func,48)}
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">
+                    <div style="font-size:15px;font-weight:800;color:#f1f5f9">${esc(func.nome)}</div>
+                    <span style="font-size:10px;background:${sf.c}22;color:${sf.c};border-radius:6px;padding:2px 7px;font-weight:700;display:flex;align-items:center;gap:3px"><span style="width:6px;height:6px;border-radius:50%;background:${sf.c};display:inline-block"></span>${sf.l}</span>
+                  </div>
+                  <div style="font-size:12px;color:#94a3b8">${esc(func.cargo||func.role)}</div>
+                  ${func.matricula?`<div style="font-size:11px;color:#475569;margin-top:1px">🪪 ${esc(func.matricula)}</div>`:''}
+                </div>
+                <div style="background:${col}22;border-radius:10px;padding:7px;flex-shrink:0;color:${col}">${roleIc.replace('stroke="currentColor"',`stroke="${col}"`)}</div>
+              </div>
+              ${func.telefone?`<div style="font-size:12px;color:#94a3b8;margin-bottom:8px">📞 ${esc(func.telefone)}</div>`:''}
+              ${epiMes>0?`<div style="font-size:11px;color:${C.blue};margin-bottom:8px;background:${C.blueDim};border-radius:7px;padding:4px 9px;display:inline-flex;align-items:center;gap:5px">🦺 ${epiMes} item(ns) retirado(s) este mês</div>`:''}
+              <div style="display:flex;gap:6px">
+                <button onclick="equipeDetail('${func.id}')" style="flex:2;height:36px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:12px;font-weight:700;cursor:pointer">Ver perfil</button>
+                <button onclick="equipeEPI('${func.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px" title="EPIs / Equipamentos">🦺</button>
+                ${isAdmin?`
+                  <button onclick="equipeEdit('${func.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.pencil}</button>
+                  <button onclick="equipeDelete('${func.id}')" style="width:36px;height:36px;background:transparent;border:1px solid #1f2130;border-radius:10px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.trash}</button>
+                `:''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('eq-search')?.addEventListener('input', e=>{
+    equipeState.busca = e.target.value;
+    renderEquipeList(container);
+  });
+}
+
+function equipeFilterRole(role){
+  equipeState.filtroRole = role;
+  const container = document.getElementById('page-content');
+  if(container) renderEquipeList(container);
+}
+
+function equipeCreate(){
+  const html = renderFuncForm(null);
+  const sh = openSheet(html, 'Cadastrar Funcionário');
+  setupFuncForm(sh.overlay, null, async(form)=>{
+    sh.close();
+    try{ await DB.createUsuario(form); showToast("Funcionário cadastrado! ✓"); await reloadEquipe(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+function equipeEdit(id){
+  const func = equipeState.lista.find(f=>f.id===id);
+  if(!func) return;
+  const html = renderFuncForm(func);
+  const sh = openSheet(html, `Editar: ${func.nome.split(" ")[0]}`);
+  setupFuncForm(sh.overlay, func, async(form)=>{
+    sh.close();
+    try{
+      const u={...form};if(!u.senha)delete u.senha;
+      await DB.updateUsuario(id,u); showToast("Dados atualizados! ✓"); await reloadEquipe();
+    }catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+async function equipeDelete(id){
+  const func = equipeState.lista.find(f=>f.id===id);
+  openConfirm(func?.nome||'funcionário', async()=>{
+    try{ await DB.deleteUsuario(id); showToast("Funcionário excluído.","warning"); await reloadEquipe(); }
+    catch(e){ showToast(e.message,"error"); }
+  });
+}
+
+async function equipeToggle(id){
+  const func = equipeState.lista.find(f=>f.id===id);
+  if(!func) return;
+  await DB.updateUsuario(id, {ativo:!func.ativo});
+  showToast(func.ativo?`${func.nome.split(" ")[0]} desativado.`:`${func.nome.split(" ")[0]} reativado! ✓`, func.ativo?"warning":"success");
+  await reloadEquipe();
+}
+
+function equipeDetail(id){
+  const func = equipeState.lista.find(f=>f.id===id);
+  if(!func) return;
+  const isAdmin = appUser.role==='admin';
+  const rows = [
+    {l:"Nome",v:func.nome},{l:"Matrícula",v:func.matricula||"—"},{l:"Cargo",v:func.cargo||"—"},
+    {l:"Função",v:ROLES_OPT.find(r=>r.v===func.role)?.l||func.role},{l:"Telefone",v:func.telefone||"—"},
+    {l:"E-mail",v:func.email},{l:"Status",v:func.ativo?"Ativo":"Inativo"}
+  ];
+  const html = `<div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px">
+      <div id="det-ava">${avaHTML(func,80)}</div>
+      ${isAdmin?`<input type="file" accept="image/*" id="det-avatar-input" style="display:none">
+        <button onclick="document.getElementById('det-avatar-input').click()" style="height:36px;padding:0 14px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+          ${ICONS.camera} Trocar foto
+        </button>`:''}
+    </div>
+    ${rows.map((r,i,a)=>`<div class="detail-row">
+      <span class="detail-label">${esc(r.l)}</span>
+      <span class="detail-value" style="color:${r.l==='Status'?(func.ativo?C.green:C.red):'#f1f5f9'}">${esc(r.v)}</span>
+    </div>`).join('')}
+  </div>`;
+  const sh = openSheet(html, 'Perfil');
+  if(isAdmin){
+    sh.overlay.querySelector('#det-avatar-input')?.addEventListener('change', async e=>{
+      const f=e.target.files[0]; if(!f) return;
+      const r=new FileReader();
+      r.onload=async ev=>{
+        await DB.updateUsuario(id,{avatar:ev.target.result});
+        const avaWrap=sh.overlay.querySelector('#det-ava');
+        if(avaWrap) avaWrap.innerHTML=avaHTML({...func,avatar:ev.target.result},80);
+        showToast("Foto atualizada! ✓");
+        await reloadEquipe();
+      };
+      r.readAsDataURL(f);
+    });
+  }
+}
+
+async function reloadEquipe(){
+  equipeState.lista = await DB.getUsuarios();
+  const container = document.getElementById('page-content');
+  if(container && appPage==='equipe') renderEquipeList(container);
+}
+
+function renderFuncForm(init){
+  const isEdit = !!init?.id;
+  const f={
+    nome:init?.nome||'', email:init?.email||'', senha:'',
+    role:init?.role||'tecnico', cargo:init?.cargo||'',
+    telefone:init?.telefone||'', matricula:init?.matricula||'',
+    status_func:init?.status_func||'ativo',
+  };
+  return `<div style="width:100%;box-sizing:border-box">
+
+    <!-- Básico -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1f2130">👤 Dados Pessoais</div>
+    ${fieldHTML('Nome Completo *','ff-nome',f.nome,'text','Ex: João da Silva',true)}
+    ${fieldHTML('Matrícula','ff-mat',f.matricula,'text','TEC-001')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${selHTML('Função (Acesso)','ff-role',f.role,ROLES_OPT)}
+      ${fieldHTML('Cargo / Especialidade','ff-cargo',f.cargo,'text','Ex: Técnico de Manutenção')}
+    </div>
+    ${fieldHTML('Telefone / WhatsApp','ff-tel',f.telefone,'text','(11) 99999-0000')}
+    ${fieldHTML('E-mail *','ff-email',f.email,'email','email@empresa.com',true)}
+    ${fieldHTML(isEdit?'Nova Senha (vazio = não alterar)':'Senha *','ff-senha',f.senha,'password',isEdit?'••••••••':'mínimo 4 caracteres')}
+
+    <!-- Status -->
+    <div style="font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.1em;margin:14px 0 10px;padding-bottom:6px;border-bottom:1px solid #1f2130">📋 Status do Funcionário</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px" id="ff-status-grid">
+      ${STATUS_FUNC.map(s=>{
+        const sel = f.status_func===s.v;
+        return `<button type="button" onclick="ffStatusSelect('${s.v}')" data-sf="${s.v}" style="height:38px;border-radius:10px;background:${sel?s.c+'22':'transparent'};border:1.5px solid ${sel?s.c:'#1f2130'};color:${sel?s.c:'#94a3b8'};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s">
+          <span style="width:8px;height:8px;border-radius:50%;background:${sel?s.c:'#475569'};flex-shrink:0;display:inline-block"></span>${s.l}
+        </button>`;
+      }).join('')}
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button style="flex:1;height:38px;border-radius:10px;border:1px solid #1f2130;background:transparent;color:#94a3b8;font-size:13px;font-weight:700;cursor:pointer" onclick="closeTopSheet()">Cancelar</button>
+      <button style="flex:1;height:38px;border-radius:10px;border:none;background:#3b82f6;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px" id="ff-save-btn">${ICONS.save} ${isEdit?'Atualizar':'Cadastrar'}</button>
+    </div>
+  </div>`;
+}
+
+let _funcSaveCallback = null;
+let _ffStatusSel = 'ativo';
+
+function ffStatusSelect(v){
+  _ffStatusSel = v;
+  document.querySelectorAll('[data-sf]').forEach(btn=>{
+    const s = STATUS_FUNC.find(x=>x.v===btn.getAttribute('data-sf'));
+    if(!s) return;
+    const sel = s.v===v;
+    btn.style.background = sel ? s.c+'22' : 'transparent';
+    btn.style.borderColor = sel ? s.c : '#1f2130';
+    btn.style.color = sel ? s.c : '#94a3b8';
+    const dot = btn.querySelector('span');
+    if(dot) dot.style.background = sel ? s.c : '#475569';
+  });
+}
+
+function setupFuncForm(overlay, init, onSave){
+  _funcSaveCallback = onSave;
+  _ffStatusSel = init?.status_func||'ativo';
+  const isEdit = !!init?.id;
+  overlay.querySelector('#ff-save-btn')?.addEventListener('click', ()=>{
+    const nome=document.getElementById('ff-nome')?.value?.trim()||'';
+    const email=document.getElementById('ff-email')?.value?.trim()||'';
+    const senha=document.getElementById('ff-senha')?.value||'';
+    if(nome.length<3){ showToast('Nome muito curto','error'); return; }
+    if(!email.includes('@')){ showToast('E-mail inválido','error'); return; }
+    if(!isEdit && senha.length<4){ showToast('Senha muito curta','error'); return; }
+    const form={
+      nome, email, senha,
+      role: document.getElementById('ff-role')?.value||'tecnico',
+      cargo: document.getElementById('ff-cargo')?.value||'',
+      telefone: document.getElementById('ff-tel')?.value||'',
+      matricula: document.getElementById('ff-mat')?.value||'',
+      status_func: _ffStatusSel,
+      // ativo = true se não for desligado/afastado, para retrocompat
+      ativo: _ffStatusSel !== 'desligado',
+    };
+    if(_funcSaveCallback) _funcSaveCallback(form);
+  });
+}
+
+// ── EPI / EQUIPAMENTOS ──
+function equipeEPI(id){
+  const func = equipeState.lista.find(f=>f.id===id);
+  if(!func) return;
+  const isAdmin = appUser.role==='admin';
+  const epis = func.epis||[];
+  const agora = new Date();
+  const mesAtual = agora.toISOString().slice(0,7); // YYYY-MM
+
+  function renderEPIList(){
+    const wrap = document.getElementById('epi-list');
+    if(!wrap) return;
+    if(epis.length===0){
+      wrap.innerHTML=`<div style="text-align:center;padding:16px 0;font-size:12px;color:#475569">Nenhum item registrado ainda.</div>`;
+      return;
+    }
+    // Group by month
+    const byMonth={};
+    epis.forEach(e=>{
+      const m=e.data?.slice(0,7)||'—';
+      if(!byMonth[m]) byMonth[m]=[];
+      byMonth[m].push(e);
+    });
+    wrap.innerHTML = Object.keys(byMonth).sort().reverse().map(m=>{
+      const label = m==='—' ? 'Sem data' : new Date(m+'-01').toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+      const isMes = m===mesAtual;
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:700;color:${isMes?C.blue:'#94a3b8'};text-transform:uppercase;letter-spacing:0.06em">${label}</div>
+          ${isMes?`<span style="background:${C.blueDim};color:${C.blue};border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">Mês atual</span>`:''}
+        </div>
+        <div style="background:#08090b;border-radius:10px;overflow:hidden">
+          ${byMonth[m].map((e,i,a)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${i<a.length-1?'border-bottom:1px solid #1f2130':''}">
+              <div style="width:34px;height:34px;border-radius:9px;background:${C.blueDim};border:1px solid ${C.blue}33;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${epiEmoji(e.categoria)}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:#f1f5f9">${esc(e.nome)}</div>
+                <div style="font-size:11px;color:#94a3b8">${esc(e.categoria||'—')} · Qtd: ${e.qtd||1}</div>
+              </div>
+              ${isAdmin?`<button onclick="epiRemover('${id}','${e.id}')" style="width:28px;height:28px;background:transparent;border:1px solid #1f2130;border-radius:8px;color:${C.red};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ICONS.x.replace('width="20"','width="12"').replace('height="20"','height="12"')}</button>`:''}
+            </div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const html = `<div>
+    <!-- Resumo do mês -->
+    <div style="background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      ${avaHTML(func,44)}
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#f1f5f9">${esc(func.nome)}</div>
+        <div style="font-size:12px;color:${C.blue};margin-top:2px">
+          ${epis.filter(e=>e.data?.startsWith(mesAtual)).length} item(ns) retirado(s) este mês
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulário add (só admin) -->
+    ${isAdmin?`<div style="background:#08090b;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px">+ Registrar retirada</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        ${fieldHTML('Item *','epi-nome','','text','Ex: Capacete, Luva')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${selHTML('Categoria','epi-cat','EPI',EPI_CATS.map(c=>({v:c,l:c})))}
+          ${fieldHTML('Qtd','epi-qtd','1','number','')}
+        </div>
+      </div>
+      ${fieldHTML('Data','epi-data',new Date().toISOString().slice(0,10),'date','')}
+      <button onclick="epiAdicionar('${id}')" style="width:100%;height:36px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:13px;font-weight:700;cursor:pointer;margin-top:4px">Registrar</button>
+    </div>`:''}
+
+    <!-- Lista -->
+    <div id="epi-list"></div>
+  </div>`;
+
+  openSheet(html, `🦺 EPIs / Equipamentos — ${func.nome.split(' ')[0]}`);
+  renderEPIList();
+}
+
+function epiEmoji(cat){
+  const m={EPI:'🦺',Ferramenta:'🔧',Equipamento:'⚙️',Uniforme:'👕',Outro:'📦'};
+  return m[cat]||'📦';
+}
+
+async function epiAdicionar(funcId){
+  const nome = document.getElementById('epi-nome')?.value?.trim()||'';
+  if(!nome){ showToast('Informe o item','error'); return; }
+  const qtd = parseInt(document.getElementById('epi-qtd')?.value)||1;
+  const cat = document.getElementById('epi-cat')?.value||'EPI';
+  const data = document.getElementById('epi-data')?.value||new Date().toISOString().slice(0,10);
+  const func = equipeState.lista.find(f=>f.id===funcId);
+  if(!func) return;
+  const novo = {id:uid(), nome, categoria:cat, qtd, data};
+  const epis = [...(func.epis||[]), novo];
+  await DB.updateUsuario(funcId, {epis});
+  showToast(`${nome} registrado! ✓`);
+  await reloadEquipe();
+  // Refresh panel
+  closeTopSheet();
+  setTimeout(()=> equipeEPI(funcId), 100);
+}
+
+async function epiRemover(funcId, epiId){
+  const func = equipeState.lista.find(f=>f.id===funcId);
+  if(!func) return;
+  const epis = (func.epis||[]).filter(e=>e.id!==epiId);
+  await DB.updateUsuario(funcId, {epis});
+  showToast('Item removido.','warning');
+  await reloadEquipe();
+  closeTopSheet();
+  setTimeout(()=> equipeEPI(funcId), 100);
+}
+
+// ── QR HASH NAVIGATION ──
+function checkQRHash(){
+  const m = window.location.hash.match(/^#os=(.+)$/);
+  if(!m) return false;
+  const h = m[1];
+  try {
+    const p=JSON.parse(decodeURIComponent(escape(atob(h))));
+    const os={numero:p.n,titulo:p.t,descricao:p.d,prioridade:p.p,status:p.s,equipe:p.e,criada:p.c,atualizada:p.u};
+    renderPublicOS(os);
+    return true;
+  } catch(e) {
+    renderPublicOSError();
+    return true;
+  }
+}
+
+function renderPublicOS(os){
+  const app=document.getElementById('app');
+  const sc=(S_MAP[os.status]||{}).c||C.sub;
+  const SI={"Concluída":"✅","Em Andamento":"🔧","Planejada":"📋","Aguardando":"⏳","Cancelada":"❌"};
+  app.innerHTML=`<div style="min-height:100vh;background:#08090b;font-family:system-ui,sans-serif;color:#f1f5f9">
+    <div style="background:#101115;border-bottom:1px solid #1f2130;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10">
+      ${brandHTML(true)}
+      <button onclick="backFromPublic()" style="height:36px;padding:0 14px;background:${C.blueDim};border:1px solid ${C.blue}33;border-radius:10px;color:${C.blue};font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px">
+        ${ICONS.externalLink} Fazer login
+      </button>
+    </div>
+    <div style="max-width:480px;margin:0 auto;padding:24px 20px 40px">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:56px;margin-bottom:10px">${SI[os.status]||"📋"}</div>
+        <div style="display:inline-flex;background:${sc}22;border:1px solid ${sc}44;border-radius:20px;padding:7px 22px">
+          <span style="font-size:15px;font-weight:800;color:${sc}">${esc(os.status)}</span>
+        </div>
+      </div>
+      <div class="card" style="padding:20px;margin-bottom:14px">
+        <div style="font-size:12px;color:#3b82f6;font-weight:700;margin-bottom:6px">${esc(os.numero)}</div>
+        <div style="font-size:19px;font-weight:800;color:#f1f5f9;line-height:1.3;margin-bottom:12px">${esc(os.titulo)}</div>
+        <div style="display:flex;gap:8px;margin-bottom:${os.descricao?'16':'0'}px">${badgeHTML(os.prioridade)}${badgeHTML(os.status)}</div>
+        ${os.descricao?`<div style="font-size:13px;color:#94a3b8;line-height:1.7;background:#08090b;border-radius:10px;padding:12px 14px;margin-top:12px">${esc(os.descricao)}</div>`:''}
+      </div>
+      ${os.equipe?.length>0?`<div class="card" style="padding:16px 20px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px">👷 Equipe responsável</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${os.equipe.map(m=>`<div style="display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:11px;background:${C.blueDim};border:1px solid ${C.blue}33;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:${C.blue};flex-shrink:0">
+              ${esc(m.nome.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase())}
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#f1f5f9">${esc(m.nome)}</div>
+              <div style="font-size:11px;color:#94a3b8;text-transform:capitalize">${esc(m.cargo)}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`:''}
+      <div class="card" style="overflow:hidden">
+        ${[{label:"Criada em",value:fmt(os.criada)},{label:"Atualizada em",value:fmt(os.atualizada)}].map((r,i)=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 20px;${i===0?'border-bottom:1px solid #1f2130':''}">
+            <span style="font-size:12px;color:#94a3b8">${r.label}</span>
+            <span style="font-size:13px;font-weight:700;color:#f1f5f9">${r.value}</span>
+          </div>`).join('')}
+      </div>
+      <div style="text-align:center;margin-top:28px;font-size:11px;color:#475569">Vexor Cloud · Sistema de Gestão Industrial</div>
+    </div>
+  </div>`;
+}
+
+function renderPublicOSError(){
+  const app=document.getElementById('app');
+  app.innerHTML=`<div style="min-height:100vh;background:#08090b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px;font-family:system-ui,sans-serif">
+    <div style="font-size:48px">❌</div>
+    <div style="font-size:18px;font-weight:700;color:#f1f5f9">Link inválido</div>
+    <div style="font-size:13px;color:#94a3b8">Os dados da OS não puderam ser lidos.</div>
+    <button onclick="backFromPublic()" style="height:56px;padding:0 28px;background:#3b82f6;border:none;border-radius:10px;color:#fff;font-weight:700;font-size:14px;cursor:pointer">Abrir o sistema</button>
+  </div>`;
+}
+
+function backFromPublic(){
+  window.location.hash = '';
+  appUser = null;
+  renderLogin();
+}
+
+// ── INIT ──
+seedDB();
+if(!checkQRHash()){
+  renderLogin();
+}
+
+window.addEventListener('hashchange', ()=>{
+  if(!checkQRHash() && !appUser){ renderLogin(); }
+});
+window.addEventListener('resize', ()=>{
+  if(appUser) renderApp();
+});
+
+// ── SERVICE WORKER (PWA) ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
